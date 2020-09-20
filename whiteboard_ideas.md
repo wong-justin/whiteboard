@@ -1,19 +1,18 @@
 gesture ideas:
 - [x] right click and drag to pan
-- [x] shift click to erase
-    - [x] faster wiggles back and forth to erase -> larger eraser radius
+- [-] shift click to erase
+    - [-] faster wiggles back and forth to erase -> larger eraser radius
     
 - [ ] erase by deleting paths,
     not just creating white lines?
 
 other features:
 - [x] undo
-    - double right click to initiate? idk
-    - [ ] wiggling for many redos, ie undo each time detect change in direction
+    - [x] wiggling for many redos, ie undo each time detect change in direction
 - [ ] redo
 - [x] clear all (small button like top right corner or something)
-- [ ] zoom in/out
-    - [ ] slider on the side/corner? easy access but not in the way
+- [x] zoom in/out
+    - [x] slider on the side/corner? easy access but not in the way
     
 - [ ] change colors (r,g,b, keep it simple)
 

@@ -3,17 +3,24 @@
 
 // example usage:
 // var settings = {
-//     showOverlays: false,
+//     showOverlays: true,
+//     blackBackground: true;
 // };
 // whiteboard.init(settings);
 
 const app = (() => {
+    // html elements
     let canvas = document.createElement('canvas');
     let ctx = canvas.getContext('2d');
     let parent = document.body;
     let zoomControlArea = document.createElement('div');
     let undoControlArea = document.createElement('div');
-    
+    let cursor = document.createElement('div');
+    let link = document.createElement('a');
+    //
+//    const Modes = {Pen:'pen', Pan:'pan', Zoom:'zoom', Undo:'undo'};//, erase:5};
+    const Modes = {Pen:1, Pan:2, Zoom:3, Undo:4};
+    let currMode = null;
     let lastCoords = [null, null];
     let origin = [0, 0];
     let lastDist = 0;
@@ -24,10 +31,12 @@ const app = (() => {
     let zoomMode = false;
     let undoMode = false;
     let paths = [];
+//    let commandStack = [];
 //    let redoStack = [];
     let backgroundColor = 'white';//'green';  // eraser
     let foregroundColor = 'black';  // current pen
     let currPath = [];
+    let cursorWidth = 6;
     
     function init(settings) {
         initCSS();
@@ -36,39 +45,44 @@ const app = (() => {
     }
     
     function initCSS() {
-//        parent.appendChild(canvas);
-        parent.insertBefore(canvas, parent.firstChild);
+        parent.insertBefore(canvas, parent.firstChild); //parent.appendChild(canvas);
         parent.style.margin = '0%'; // need to draw to edge of whiteboard
         canvas.style.display = 'block'; // prevent scrollbars
 //        canvas.style.border = '1px solid black';
         
         // full window area:        
-        canvas.style.height = '100vh';//%';//vh';
-        canvas.style.width = '100vw';//%';//vw';
+        canvas.style.height = '100vh';//%';
+        canvas.style.width = '100vw';//%';
         
-        // control areas
+        // control area(s)
         document.body.appendChild(zoomControlArea);
         zoomControlArea.style.position = 'fixed';
         zoomControlArea.style.right = '0px';
         zoomControlArea.style.top = '100px';
         zoomControlArea.style.width = '75px';
         zoomControlArea.style.height = '250px';
-        zoomControlArea.style.border = '1px solid red';
+//        zoomControlArea.style.border = '1px solid red';
         zoomControlArea.style.pointerEvents = 'none';
         
-//        document.body.appendChild(undoControlArea);
-//        undoControlArea.style.position = 'fixed';
-//        undoControlArea.style.left = '100px';
-//        undoControlArea.style.top = '0px';
-//        undoControlArea.style.width = '250px';
-//        undoControlArea.style.height = '50px';
-//        undoControlArea.style.border = '1px solid red';
-//        undoControlArea.style.pointerEvents = 'none'
+        // cursor
+        parent.style.cursor = 'none';
+        document.body.appendChild(cursor);
+        cursor.style.position = 'fixed';
+        cursor.style.width = cursorWidth + 'px';
+        cursor.style.height = cursorWidth + 'px';
+        cursor.style.borderRadius =  '50%';
+        cursor.style.background = foregroundColor;
+        cursor.style.pointerEvents = 'none';
         
+        // misc?
+        link.style.display = 'none';
+        link.setAttribute('download', 'whiteboard.png');
     }
-
+    
     function initPen() {
-        setEraserMode(false);
+        // canvas context stroking
+        ctx.strokeStyle = foregroundColor;
+        ctx.lineWidth = 4;
         ctx.lineCap = 'round';
     }
     
@@ -79,26 +93,166 @@ const app = (() => {
         canvas.addEventListener('mousemove', onMouseMove);
         canvas.addEventListener('contextmenu', (e)=>e.preventDefault());
         // key events
-        window.addEventListener('keydown', performCommand);
-        window.addEventListener('keydown', setMode);
-        window.addEventListener('keyup', unsetMode);
+        window.addEventListener('keydown', onKeyPress);
+        window.addEventListener('keydown', onKeyToggleOn);
+        window.addEventListener('keyup', onKeyToggleOff);
         // window events
         window.addEventListener('resize', resize);
         parent.addEventListener('mouseout', onMouseOut);
     }
     
-    // drawing
-
-    function startDraw(e) {
-        penDown = true;
-        currPath = [];  // reset curr path
-        draw(e);    // draw a dot, covering case of single click
+    // EVENT LISTENERS 
+    // window
+    
+    function resize() {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+        origin = [canvas.width / 2, canvas.height / 2];
+        // because board state has been reset:
+        initPen();
+        redrawAll();    
     }
-
-    function stopDraw(e) {
-        paths.push(currPath); // finish curr path
-        penDown = false;
+    
+    function onMouseOut(e) {
+        if (!e.relatedTarget && !e.toElement) {
+//            console.log('mouse out, mouse was up (normal)');
+        }
+        else {
+//            console.log('left window during mousedown!');
+            // cancel any mousedown modes that need to be cancelled upon leaving window
+            unsetMode();
+        }
     }
+    
+    // mouse
+    
+    function onMouseDown(e) {
+        switch (e.button) {
+            case 0: // left click
+                if (currMode == Modes.Undo) {// && insideArea(e, undoControlArea)) {
+                    lastDirection = null;
+                }
+                else if (currMode === null) {
+                    startDraw(e);
+                }
+                break;
+            case 2: // right click  
+                if (insideArea(e, zoomControlArea)) {
+                    setMode(Modes.Zoom);
+                }
+                else {
+                    setMode(Modes.Pan);
+                }
+                break;
+        }
+    }
+    
+    function onMouseUp(e) {
+        switch (e.button) {
+            case 0: // left click
+                if (currMode == Modes.Undo) {
+                    unsetMode();
+                }
+                else if (currMode == Modes.Pen) {
+                    stopDraw(e);
+                }
+                break;
+            case 2: // right click
+                unsetMode();
+                break;
+        }
+    }
+    
+    function onMouseMove(e) {
+        cursor.style.left = e.clientX - cursorWidth/2 + 'px';
+        cursor.style.top = e.clientY - cursorWidth/2 + 'px';
+        
+        switch (currMode) {
+            case Modes.Pen:
+                draw(e);
+                break;
+            case Modes.Pan:
+                pan(e);
+                break;
+            case Modes.Zoom:
+                var factor = calcZoomFactor(e);
+                zoom(factor);
+                break;
+            case Modes.Undo:
+                if ( switchedDirection(e) ) {undo();}
+                break;
+//            case Modes.Erase:
+//                erase(e);
+//                break;
+        }
+        
+//        lastCoords[0] = e.clientX;
+//        lastCoords[1] =  e.clientY;
+        var mousePos = getRelativeMousePos(e);
+        
+        lastCoords[0] = mousePos[0];
+        lastCoords[1] = mousePos[1];
+        
+        // ? 
+//        requestAnimationFrame(() => onMouseMove(e));
+    }
+    
+    // keypresses
+    
+    function onKeyToggleOn(e) {
+        switch (e.key) {
+            case 'Shift':
+                setMode(Modes.Undo);
+        }
+    }
+    
+    function onKeyToggleOff(e) {
+        switch (e.key) {
+            case 'Shift':
+                unsetMode();
+        }
+    }
+    
+    function onKeyPress(e) {
+//        console.log(e.key)
+        
+        if (e.ctrlKey) {
+            switch (e.key) {
+                case 'z':
+                    undo();
+                    break;
+                case 'y':
+                    redo();
+                    break;
+                case 's':
+                    e.preventDefault();
+                    save();
+                    break;
+            }
+        }
+        else{
+            switch (e.key) {
+                case ' ':   // clear canvas and data
+                    paths = [];
+                    clearAll();
+                    break;
+                case 'r':
+                    setForegroundColor('red');
+                    break;
+                case 'g':
+                    setForegroundColor('green');
+                    break;
+                case 'b':
+                    setForegroundColor('blue');
+                    break;
+                case 'd':
+                    setForegroundColor('black');
+                    break;
+            }
+        }
+    }
+        
+    // MAIN COMMANDS
     
     function draw(e) {
         
@@ -119,6 +273,51 @@ const app = (() => {
         currPath.push([mousePos[0], mousePos[1]]);
     }
     
+    function pan(e) {
+        var mousePos = getRelativeMousePos(e);
+        var dx = mousePos[0] - lastCoords[0];
+        var dy = mousePos[1] - lastCoords[1];
+        
+        paths = paths.map(pathObj => {
+            return {
+                path: pathObj.path.map(pt => translatePoint(pt, dx, dy)),
+                color: pathObj.color};
+        });
+        clearAll();
+        redrawAll();
+    }   
+    
+    function zoom(factor) {
+        paths = paths.map(pathObj => {
+            return {
+                path: pathObj.path.map(pt => scale(pt, factor, origin)),
+                color: pathObj.color};
+        });
+        clearAll();
+        redrawAll();
+    }
+    
+    function undo() {
+        var lastPath = paths.pop();
+        if (lastPath) {
+//            redoStack.push(lastPath);
+            clearAll();
+            redrawAll();
+        } 
+    }
+    
+    /*
+    function redo() {
+//        var undidPath = redoStack.pop();
+//        if (undidPath) {
+//            paths.push(undidPath);
+//            clearAll();
+//            redrawAll();
+//        }  
+    }
+    */
+    
+    /*
     function erase(e) {
         // increase line width for bigger strokes
         var dx = e.clientX - lastCoords[0];
@@ -140,174 +339,39 @@ const app = (() => {
 
         draw(e);
     }
+    */
     
-    function drawLine(x0, y0, x1, y1) {
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.stroke();
+    let clearAll = () => ctx.clearRect(0, 0, canvas.width, canvas.height);  // just whites canvas but not data
+    let redrawAll = () => paths.map((path) => drawPath(path.path, path.color));
+    
+    // HELPERS
+    // draw
+    
+    function startDraw(e) {
+        setMode(Modes.Pen);
+        currPath = [];  // reset curr path
+        draw(e);    // draw a dot, covering case of single click
     }
-     
-    function onMouseDown(e) {
-        switch (e.button) {
-            case 0: // left click
-                if (eraserMode) {// && insideUndoArea(e)) {
-                    undoMode = true;
-                    lastDirection = null;
-                    setEraserMode(false);
-                }
-                else {
-                    startDraw(e);
-                }
-                break;
-            case 2: // right click  
-                if (insideZoomArea(e)) {
-                    zoomMode = true;
-                }
-                else {
-                    panMode = true;
-                }
-                break;
-        }
+
+    function stopDraw(e) {
+        paths.push({path:currPath, color:foregroundColor}); // finish curr path
+        unsetMode();
     }
     
-    function onMouseUp(e) {
-        switch (e.button) {
-            case 0: // left click
-                if (undoMode) {
-                    undoMode = false;
-                }
-                else {
-                    stopDraw(e);
-                }
-                break;
-            case 2: // right click
-//                stopPan(e);
-                if (zoomMode) {
-                    zoomMode = false;
-                }
-                else {
-                    panMode = false;
-                }
-                break;
-        }
-    }
-    
-    function onMouseMove(e) {
-        if (panMode) {
-            pan(e);
-        }
-        else if (zoomMode) {
-            var factor = calcZoomFactor(e);
-            zoom(factor);
-        }
-        else if (undoMode) {
-            if ( switchedDirection(e) ) {
-                undo();
-            }
-        }
-        else if (penDown) {
-            draw(e);
-        }
-        else if (eraserMode) {
-//            erase(e);            
-        }
+    function drawPath(path, color) {
+        ctx.strokeStyle = color;    // temporarily set ctx color for this path
         
-//        lastCoords[0] = e.clientX;
-//        lastCoords[1] =  e.clientY;
-        var mousePos = getRelativeMousePos(e);
-        
-        lastCoords[0] = mousePos[0];
-        lastCoords[1] = mousePos[1];
-    }
-    
-    // keypresses
-    
-    function setMode(e) {
-        switch (e.key) {
-            case 'Shift':
-                setEraserMode(true);
-                break;
-        }
-    }
-    
-    function unsetMode(e) {
-        switch (e.key) {
-            case 'Shift':
-                setEraserMode(false);
-                break;
-        }
-    }
-    
-    function setEraserMode(on=true) {
-        // change pen style accordingly
-        eraserMode = on;
-        if (on) {
-//            ctx.strokeStyle = backgroundColor;
-//            ctx.lineWidth = 50;
-        } else {
-//            stopDraw(); // penup even if mousedown still
-//            ctx.strokeStyle = foregroundColor;
-            ctx.lineWidth = 4;
-        }
-    }
-    
-    function performCommand(e) {
-//        console.log(e.key)
-        
-        if (e.key == ' ') {
-            // clear canvas and data
-            paths = [];
-            clearAll();
-        }
-        else if (e.ctrlKey && e.key == 'z') {
-            undo();
-        }
-        else if (e.ctrlKey && e.key == 'y') {
-            redo();
-        }
-//        else if (e.key == '+') {
-//            zoom(3/2);
-//        }
-//        else if (e.key == '-') {
-//            zoom(2/3);
-//        }
-    }
-    
-    // commands and related
-    
-    function undo() {
-        var lastPath = paths.pop();
-        if (lastPath) {
-//            redoStack.push(lastPath);
-            clearAll();
-            redrawAll();
-        } 
-    }
-    
-    function redo() {
-//        var undidPath = redoStack.pop();
-//        if (undidPath) {
-//            paths.push(undidPath);
-//            clearAll();
-//            redrawAll();
-//        }  
-    }
-    
-    function redrawAll() {
-        paths.map(path => drawPath(path));
-    }
-    
-    function clearAll() {
-        // just clears canvas but not data
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-    
-    function drawPath(path) {
         var i = 0;
-        var numPts = path.length;
+        var numPts = path.length;        
         lastPt = path[i];
         i += 1
+        if (numPts == 1) {  // case of just a dot
+            drawLine(lastPt[0], 
+                     lastPt[1],
+                     lastPt[0], 
+                     lastPt[1]);
+            return;
+        }
         
         while (i < numPts) {
             
@@ -315,18 +379,23 @@ const app = (() => {
             drawLine(lastPt[0], 
                      lastPt[1],
                      currPt[0],
-                     currPt[1])
+                     currPt[1]);
             
             lastPt = currPt;
             i += 1;
         } 
+        
+        ctx.strokeStyle = foregroundColor;  // return to old
     }
     
-    function zoom(factor) {
-        paths = paths.map(path => path.map(pt => scale(pt, factor, origin)));
-        clearAll();
-        redrawAll();
+    function drawLine(x0, y0, x1, y1) {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
     }
+    
+    // zoom
     
     function scale(pt, factor, origin) {
         var rel = relativeTo(pt, origin);
@@ -351,45 +420,42 @@ const app = (() => {
         ];
     }
     
-    function pan(e) {
-        var mousePos = getRelativeMousePos(e);
-        var dx = mousePos[0] - lastCoords[0];
-        var dy = mousePos[1] - lastCoords[1];
-        
-        paths = paths.map(path => path.map(pt => translatePoint(pt, dx, dy)));
-        clearAll();
-        redrawAll();
+    function calcZoomFactor(e) {
+        var dy = e.clientY - lastCoords[1];
+        // avoid zooming by 0:
+        if (dy == 100) {
+            dy = 101;
+        }
+        return 1 - (dy/100);    // arbitrary descaling by 100
     }
+    
+    // pan
                   
     function translatePoint(pt, dx, dy) {
         return [pt[0] + dx, pt[1] + dy];
     }
     
-    // any other window stuff
+    // undo
     
-    function resize() {
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
-        origin = [canvas.width / 2, canvas.height / 2];
-        // because board state has been reset:
-        initPen();
-        redrawAll();    
+    function switchedDirection(e) {
+        
+        var currDirection = e.clientX > lastCoords[0];  // curr pos is right of prev pos
+        
+        //  if first stroke, set direction
+        if (lastDirection == null) {
+            lastDirection = currDirection;
+        }
+        
+        // compare to last direction
+        if (currDirection != lastDirection) {
+            lastDirection = currDirection;  // set new direction now that it has changed
+            return true;
+        }
+        else {return false;}    // hasn't switched direction yet
     }
+
     
-    function onMouseOut(e) {
-        if (!e.relatedTarget && !e.toElement) {
-//            console.log('mouse out, mouse was up (normal)');
-        }
-        else {
-//            console.log('left window during mousedown!');
-            // cancel any mousedown modes that need to be cancelled upon leaving window
-            // eg 
-            penDown = false;
-            panMode = false;
-            eraserMode = false;
-            zoomMode = false;
-        }
-    }
+    // event handler callback helpers and misc for transitioning/detecting
     
     function getRelativeMousePos(e) {
         var rect = e.target.getBoundingClientRect();
@@ -399,17 +465,10 @@ const app = (() => {
         ];
     }
     
-    function insideUndoArea(e) {
+    function insideArea(e, div) {
         return ptInside(
             [e.clientX, e.clientY],
-            undoControlArea.getBoundingClientRect()
-        );
-    }
-    
-    function insideZoomArea(e) {
-        return ptInside(
-            [e.clientX, e.clientY],
-            zoomControlArea.getBoundingClientRect()
+            div.getBoundingClientRect()
         );
     }
     
@@ -420,38 +479,107 @@ const app = (() => {
                 pt[1] < rect.bottom);
     }
     
-    function calcZoomFactor(e) {
-        var dy = e.clientY - lastCoords[1];
-        // avoid zooming by 0:
-        if (dy == 100) {
-            dy = 101;
-        }
-        return 1 - (dy/100);
+    function setForegroundColor(newColor) {
+        foregroundColor = newColor;
+        ctx.strokeStyle = foregroundColor;
+        cursor.style.background = foregroundColor;
     }
     
-    function switchedDirection(e) {
-        var currDirection = e.clientX > lastCoords[0];
-        //  if first stroke, setting direction:
-        if (lastDirection == null) {
-            lastDirection = currDirection;
+    function setMode(newMode) {
+        switch (newMode) {
+            case Modes.Zoom:
+                hideCursor();
+                break;
+            case Modes.Undo:
+                hideCursor();
+                break;
         }
-        // compare to last direction
-        if (currDirection != lastDirection) {
-            lastDirection = currDirection;
-            return true;
-        }
-        else {return false;}
+        currMode = newMode;
     }
     
-    // draw command:
+    function unsetMode() {
+        switch (currMode) {
+            case Modes.Zoom:
+                showCursor();
+                break;
+            case Modes.Undo:
+                showCursor();
+                break;
+        }
+        currMode = null;
+    }
+    
+    let hideCursor = () => cursor.style.display = 'none';
+    let showCursor = () => cursor.style.display = 'block';
+    
+    // saving
+    
+    function save() {
+        var ptArrs = paths.map(pathObj => pathObj.path);
+        var xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
+        var ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
+        var xmin = min(xs),
+            xmax = max(xs),
+            ymin = min(ys),
+            ymax = max(ys);
+        
+        console.log(xmin, xmax, ymin, ymax);
+        
+        var margin = 100;
+        var totalWidth = (xmax - xmin) + 2*margin,
+            totalHeight = (ymax - ymin) + 2*margin;
+        
+        var newCanvas = document.createElement('canvas');
+        var newCtx = newCanvas.getContext('2d');
+        newCanvas.width = totalWidth;
+        newCanvas.height = totalHeight;
+        
+        var newPaths = paths.map(pathObj => {
+            return {
+                path: pathObj.path.map(pt => translatePoint(pt, 
+                                                            -xmin + margin, 
+                                                            -ymin + margin)),
+                color: pathObj.color  
+            };
+        });
+        
+        var oldCtx = ctx,
+            oldCanvas = canvas,
+            oldPaths = paths;
+        
+        canvas = newCanvas;
+        ctx = newCtx;
+        paths = newPaths;
+        
+        initPen();
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        redrawAll();
+        
+        link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+        link.click();
+        
+        canvas = oldCanvas;
+        ctx = oldCtx;
+        paths = oldPaths;
+    }
+    
+    let min = (arr) => Math.min(...arr);
+    let max = (arr) => Math.max(...arr);
+        
+    
+    
+    
+    // command examples:
     //var drawCommand = {fn:drawPath, path:path, color:color}
     //var eraseCommand = {fn:drawErasePath, path:}
-    
     //translatePoint.apply(args);
     
-
-//    init(); //window.addEventListener('load', init());
     
-    // export global 
+
+    
+    // export global whiteboard.init
+    
+//    init(); //window.addEventListener('load', init());
     window.whiteboard = {init: (settings) => init(settings)};
 })();
