@@ -19,7 +19,7 @@ const app = (() => {
     let link = document.createElement('a');
     //
 //    const Modes = {Pen:'pen', Pan:'pan', Zoom:'zoom', Undo:'undo'};//, erase:5};
-    const Modes = {Pen:1, Pan:2, Zoom:3, Undo:4};
+    const Modes = {Pen:1, Pan:2, Zoom:3, Undo:4, Erase:5};
     let currMode = null;
     let lastCoords = [null, null];
     let origin = [0, 0];
@@ -37,6 +37,7 @@ const app = (() => {
     let foregroundColor = 'black';  // current pen
     let currPath = [];
     let cursorWidth = 6;
+    let eraserWidth = 12;
     
     function init(settings) {
         initCSS();
@@ -66,13 +67,10 @@ const app = (() => {
         
         // cursor
         parent.style.cursor = 'none';
-        document.body.appendChild(cursor);
         cursor.style.position = 'fixed';
-        cursor.style.width = cursorWidth + 'px';
-        cursor.style.height = cursorWidth + 'px';
-        cursor.style.borderRadius =  '50%';
-        cursor.style.background = foregroundColor;
         cursor.style.pointerEvents = 'none';
+        document.body.appendChild(cursor);
+        defaultCursorStyle();
         
         // misc?
         link.style.display = 'none';
@@ -84,6 +82,15 @@ const app = (() => {
         ctx.strokeStyle = foregroundColor;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
+    }
+    
+    function defaultCursorStyle() {
+        cursor.style.display = 'block'
+        cursor.style.width = cursorWidth + 'px';
+        cursor.style.height = cursorWidth + 'px';
+        cursor.style.borderRadius = '50%';
+        cursor.style.background = foregroundColor;
+        cursor.style.border = 'none';
     }
     
     function addEventListeners() {
@@ -101,7 +108,7 @@ const app = (() => {
         parent.addEventListener('mouseout', onMouseOut);
     }
     
-    // EVENT LISTENERS 
+    // EVENT HANDLERS 
     // window
     
     function resize() {
@@ -150,10 +157,10 @@ const app = (() => {
     function onMouseUp(e) {
         switch (e.button) {
             case 0: // left click
-                if (currMode == Modes.Undo) {
-                    unsetMode();
-                }
-                else if (currMode == Modes.Pen) {
+//                if (currMode == Modes.Undo) {
+//                    unsetMode();
+//                }
+                if (currMode == Modes.Pen) {
                     stopDraw(e);
                 }
                 break;
@@ -181,9 +188,9 @@ const app = (() => {
             case Modes.Undo:
                 if ( switchedDirection(e) ) {undo();}
                 break;
-//            case Modes.Erase:
-//                erase(e);
-//                break;
+            case Modes.Erase:
+                erase(e);
+                break;
         }
         
 //        lastCoords[0] = e.clientX;
@@ -202,7 +209,7 @@ const app = (() => {
     function onKeyToggleOn(e) {
         switch (e.key) {
             case 'Shift':
-                setMode(Modes.Undo);
+                setMode(Modes.Erase);
         }
     }
     
@@ -245,7 +252,7 @@ const app = (() => {
                 case 'b':
                     setForegroundColor('blue');
                     break;
-                case 'd':
+                case 'f':
                     setForegroundColor('black');
                     break;
             }
@@ -317,27 +324,58 @@ const app = (() => {
     }
     */
     
-    /*
     function erase(e) {
-        // increase line width for bigger strokes
-        var dx = e.clientX - lastCoords[0];
-        var dy = e.clientY - lastCoords[1];
-        var dist = dx * dx + dy * dy;
-
-        var largeAcceleration = dist - lastDist > 10;
-        var largeMovement = dist > 200;
-
-        if (largeAcceleration || largeMovement) {
-            ctx.lineWidth = Math.min(ctx.lineWidth + 10,
-                                     200);
-        } else {
-            ctx.lineWidth = Math.max(ctx.lineWidth - 10,
-                                     30);
+        
+        // crossedPaths = paths.filter(path => isIntersecting(mousePos));
+        // paths.pop(crossedPaths);
+        
+        var erasedSomething = false;
+        
+        var mousePos = getRelativeMousePos(e);
+        var mouseMoveBox = boundingBox(mousePos, lastCoords);
+        mouseMoveBox.xmin -= eraserWidth / 2;
+        mouseMoveBox.ymin -= eraserWidth / 2;
+        mouseMoveBox.xmax += eraserWidth / 2;
+        mouseMoveBox.ymax += eraserWidth / 2;
+        
+        var i = paths.length - 1;
+        for (i; i >=0; i--) {
+            var path = paths[i].path;
+            
+            if ( boxIntersectsPath(mouseMoveBox, path) ) {
+                paths.splice(i, 1);
+                erasedSomething = true;
+            }
         }
+        
+        if (erasedSomething) {
+            clearAll();
+            redrawAll();
+        } 
+    }
 
-        lastDist = dist;
+    /* 
+    function eraseAsAcceleratingWhitePath() {
+        // increase line width for bigger strokes
 
-        draw(e);
+//        var dx = e.clientX - lastCoords[0];
+//        var dy = e.clientY - lastCoords[1];
+//        var dist = dx * dx + dy * dy;
+//
+//        var largeAcceleration = dist - lastDist > 10;
+//        var largeMovement = dist > 200;
+//
+//        if (largeAcceleration || largeMovement) {
+//            ctx.lineWidth = Math.min(ctx.lineWidth + 10,
+//                                     200);
+//        } else {
+//            ctx.lineWidth = Math.max(ctx.lineWidth - 10,
+//                                     30);
+//        }
+//
+//        lastDist = dist;
+//
+//        draw(e);
     }
     */
     
@@ -355,6 +393,8 @@ const app = (() => {
 
     function stopDraw(e) {
         paths.push({path:currPath, color:foregroundColor}); // finish curr path
+//        commandStack.push({fn: drawPath, path:currPath, color: foregroundColor});
+        
         unsetMode();
     }
     
@@ -454,6 +494,113 @@ const app = (() => {
         else {return false;}    // hasn't switched direction yet
     }
 
+    // erase
+    
+    /*
+    function lineIntersectsPath(p0, p1, path) {
+        var i = 0;
+        var lastPt = path[0];
+        i++;
+        var numPts = path.length;
+        while (i < numPts) {
+            var currPt = path[i];
+            if ( linesIntersect(p0, p1, lastPt, currPt) ) {
+                return true;
+            }
+            
+            lastPt = currPt;
+            i++;
+        }
+        return false;
+    }
+    */
+    
+    function boxIntersectsPath(box, path) {
+
+        var lastPt = path[0];        
+        var numPts = path.length;
+        if (numPts == 1) {
+            return pointInBox(lastPt, box);
+        }
+        
+        var i = 1;  
+        while (i < numPts) {
+            var currPt = path[i];
+            if ( boxIntersectsLine(box, lastPt, currPt) ) {
+                return true;
+            }
+            
+            lastPt = currPt;
+            i++;
+        }
+        return false;
+    }
+    
+    function boxIntersectsLine(box, q0, q1) {
+        if ( boxesOverlap(box, boundingBox(q0, q1)) ) {
+            // check for real intersection
+            
+            return true;
+        } else {return false;}  // doesn't pass this approx initial check
+    }
+    
+    /*
+    function linesIntersect(p0, p1, q0, q1) {
+        var pBox = boundingBox(p0, p1);
+        var qBox = boundingBox(q0, q1);
+                
+        if ( boxesOverlap(pBox, qBox) ) {
+            // check for real intersection
+            return true;
+            
+        } else {return false;}  // doesn't pass this approx initial check
+    }
+    */
+    
+    function boundingBox(ptA, ptB) {
+        var xmin,
+            xmax,
+            ymin,
+            ymax;
+        
+        if (ptA[0] < ptB[0]) {
+            xmin = ptA[0];
+            xmax = ptB[0];
+        }
+        else {
+            xmin = ptB[0];
+            xmax = ptA[0];
+        }
+        if (ptA[1] < ptB[1]) {
+            ymin = ptA[1];
+            ymax = ptB[1];
+        }
+        else {
+            ymin = ptB[1];
+            ymax = ptA[1];
+        }
+//        return [xmin, xmax, ymin, ymax];
+        return {xmin:xmin, xmax:xmax, ymin:ymin, ymax:ymax};
+    }
+    
+    function boxesOverlap(A, B) {
+        return (A.xmin < B.xmin &&
+                A.xmax > B.xmin &&
+                A.ymin < B.ymin &&
+                A.ymax > B.ymin) ||
+               (B.xmin < A.xmin &&
+                B.xmax > A.xmin &&
+                B.ymin < A.ymin &&
+                B.ymax > A.ymin);
+    }
+    
+    function pointInBox(pt, box) {
+        return (pt[0] >= box.xmin && 
+                pt[0] <= box.xmax &&
+                pt[1] >= box.ymin &&
+                pt[1] <= box.ymax);
+    }
+    
     
     // event handler callback helpers and misc for transitioning/detecting
     
@@ -493,24 +640,38 @@ const app = (() => {
             case Modes.Undo:
                 hideCursor();
                 break;
+            case Modes.Erase:
+                eraserCursor();
         }
         currMode = newMode;
     }
     
     function unsetMode() {
-        switch (currMode) {
-            case Modes.Zoom:
-                showCursor();
-                break;
-            case Modes.Undo:
-                showCursor();
-                break;
-        }
+//        switch (currMode) {
+//            case Modes.Zoom:
+//                showCursor();
+//                break;
+//            case Modes.Undo:
+//                showCursor();
+//                break;
+//            case Modes.Erase:
+//                eraseCursorOff();
+//        }
+        defaultCursorStyle();
         currMode = null;
     }
     
     let hideCursor = () => cursor.style.display = 'none';
-    let showCursor = () => cursor.style.display = 'block';
+    
+    function eraserCursor() {
+        cursor.style.borderRadius = '0%';
+        cursor.style.background = backgroundColor;
+        cursor.style.border = '1px solid black';
+        cursor.style.width = eraserWidth + 'px';
+        cursor.style.height = eraserWidth + 'px';
+        cursor.style.border = '1px solid black';
+        
+    }
     
     // saving
     
