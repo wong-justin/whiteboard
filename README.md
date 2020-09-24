@@ -1,7 +1,7 @@
 # whiteboard
 
 Simple whiteboard implementation meeting custom needs.
-(minimal UI and using a drawing tablet with 2-button pen)
+(minimal UI and using a drawing tablet with 2-button stylus)
 
 ## Features
 
@@ -14,7 +14,7 @@ gesture ideas:
     - [ ] erase by selecting polygon around paths to delete?
 
 other features:
-- [x] undo
+- [~] undo
     - [x] wiggling for many redos, ie undo each time detect change in direction
 - [ ] redo
     - [ ] track commands for controls like redo, smart panning, ...
@@ -40,6 +40,3 @@ other features:
         https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 
 - [x] export as image
-
-
-
