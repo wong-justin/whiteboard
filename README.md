@@ -1,3 +1,10 @@
+#whiteboard
+
+Simple whiteboard implementation meeting custom needs.
+(minimal UI and using a drawing tablet with 2-button pen)
+
+##Features
+
 gesture ideas:
 - [x] right click and drag to pan
 - [x] shift click to erase
@@ -20,12 +27,19 @@ other features:
     
 - [~] change colors (r,g,b, keep it simple)
 
+- [ ] shift drag to select points
+    - [ ] delete with some gesture?
+    - [ ] drag selected
+
+- [ ] for better performance, investigate clipping mask on canvas redraw?
+    - [ ] store less points in paths or interpolate or curve, eg remove super close points in a path
+
     down the road...
     - [ ] networking to communicate between two people??i guess just hosted on a little server using sockets or something
     - [ ] local bluetooth?????
         https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 
-- [ ] export as image
+- [x] export as image
 
 
 

@@ -462,10 +462,7 @@ const app = (() => {
     
     function calcZoomFactor(e) {
         var dy = e.clientY - lastCoords[1];
-        // avoid zooming by 0:
-        if (dy == 100) {
-            dy = 101;
-        }
+        dy = Math.min(dy, 90)  // avoid zooming by nonpositive factor:
         return 1 - (dy/100);    // arbitrary descaling by 100
     }
     
