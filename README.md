@@ -1,9 +1,9 @@
-#whiteboard
+# whiteboard
 
 Simple whiteboard implementation meeting custom needs.
 (minimal UI and using a drawing tablet with 2-button pen)
 
-##Features
+## Features
 
 gesture ideas:
 - [x] right click and drag to pan
@@ -36,7 +36,7 @@ other features:
 
     down the road...
     - [ ] networking to communicate between two people??i guess just hosted on a little server using sockets or something
-    - [ ] local bluetooth?????
+    - [ ] local bluetooth app?????
         https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 
 - [x] export as image
