@@ -26,15 +26,20 @@ other features:
 - [x] clear all (spacebar)
 - [x] zoom in/out
     - [x] right click + drag slider at top right?
-    
+
 - [x] change colors (r,g,b keys and f for black)
 
 - [ ] shift drag to select points
     - [ ] delete with some gesture?
     - [ ] drag selected
 
+- [ ] import/export state
+- [ ] import image (ctrl i?)
+- [ ] simple text box (hit Enter to start typing at cursor?)
+
 for better performance...
 - [ ] requestAnimationFrame() for quicker polling than onmousemove? Onmousemove slows considerably with heavy computer usage like screensharing + videoconferencing
+- [ ] cursor display on canvas instead of div element forcing update
 - [ ] investigate clipping mask on canvas redraw?
 - [ ] store less points in paths or interpolate or curve, eg remove super close points in a path
 
