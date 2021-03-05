@@ -29,7 +29,15 @@
 //   switch(func)
 //     drawPath: erase(path)
 //     erase: drawPath(path, color)
-//     clearAll: 
+//     clearAll: drawPaths(paths)
+//
+
+// Colors = {
+//  BLACK: 'black',
+//  foreground: 'white',
+//  background:
+// toggleDarkMode: () => {}
+// }
 
 (() => {
     // html elements
