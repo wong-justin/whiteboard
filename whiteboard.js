@@ -41,9 +41,9 @@
 
 (() => {
     // html elements
+    let parent = document.body;
     let canvas = document.createElement('canvas');
     let ctx = canvas.getContext('2d');
-    let parent = document.body;
     let zoomControlArea = document.createElement('div');
     let undoControlArea = document.createElement('div');
     let cursor = document.createElement('div');
@@ -66,109 +66,182 @@
     let cursorWidth = 6;
     let eraserWidth = 12;
 
-    const helpMessage = `
-      Controls:
+    function showHelpMessage() {
+      let message = `
+        Controls:
 
-      Shift + mouse move
-       - erase
-      Space
-       - erase all
-      Right click + mouse move
-       - pan
-      Right click upper right margin + mouse move up/down
-       - zoom in/out
-      R,G,B
-       - pen colors
-      F
-       - default pen color (white or black)
-      Ctrl + Z
-       - erase last path
-      Ctrl + S
-       - save as image
-      D
-       - toggle dark mode
-    `.replace(/  +/g, '');  // remove indents
-
-    function init(settings) {
-        initCSS();
-        resize();   // inits canvas size and pen
-        addEventListeners();
-        console.log(helpMessage);
+        Shift + mouse move
+         - erase
+        Space
+         - erase all
+        Right click + mouse move
+         - pan
+        Right click upper right margin + mouse move up/down
+         - zoom in/out
+        R,G,B
+         - pen colors
+        F
+         - default pen color (white or black)
+        Ctrl + Z
+         - erase last path
+        Ctrl + S
+         - save as image
+        D
+         - toggle dark mode
+      `.replace(/  +/g, '');  // remove indents
+      console.log(message);
     }
 
-    function initCSS() {
-        parent.insertBefore(canvas, parent.firstChild); //parent.appendChild(canvas);
-        parent.style.margin = '0%'; // need to draw to edge of whiteboard
-        canvas.style.display = 'block'; // prevent scrollbars
-//        canvas.style.border = '1px solid black';
+    function init(settings) {
+        initElements();     // onetime inits on load
+        addEventListeners();
+        onResize();         // canvas size init
+        setDefaultPen();    // stroke color
+        setDefaultCursor(); // cursor style
 
-        // full window area:
-        canvas.style.height = '100vh';//%';
-        canvas.style.width = '100vw';//%';
-        canvas.style.backgroundColor = backgroundColor;
+        showHelpMessage();  // instructions
+    }
+
+    /**** STYLING ****/
+
+    function initElements() {
+        // called once on page load; adding and styling page elements
+
+        // canvas
+        parent.insertBefore(canvas, parent.firstChild); //parent.appendChild(canvas);
+        parent.style.margin = '0%'; // full window area
+        setStyle(canvas, {
+            display: 'block', // prevent scrollbars
+            height: '100vh',  // full window area. 100vh != 100%
+            width: '100vw',
+            backgroundColor: backgroundColor,
+            // border: '1px solid black';
+        });
 
         // control area(s)
         document.body.appendChild(zoomControlArea);
-        zoomControlArea.style.position = 'fixed';
-        zoomControlArea.style.right = '0px';
-        zoomControlArea.style.top = '100px';
-        zoomControlArea.style.width = '75px';
-        zoomControlArea.style.height = '250px';
-//        zoomControlArea.style.border = '1px solid red';
-        zoomControlArea.style.pointerEvents = 'none';
+        setStyle(zoomControlArea, {
+            position: 'fixed',
+            right: '0px',
+            top: '100px',
+            width: '75px',
+            height: '250px',
+            // border: '1px solid red', // for visual testing
+            pointerEvents: 'none',
+        });
 
         // cursor
-        parent.style.cursor = 'none';
-        cursor.style.position = 'fixed';
-        cursor.style.pointerEvents = 'none';
+        parent.style.cursor = 'none'; // get rid of default mouse pointer
         document.body.appendChild(cursor);
-        defaultCursorStyle();
+        setStyle(cursor, {
+            position: 'fixed',
+            pointerEvents: 'none',
+        });
 
-        // misc?
-        link.style.display = 'none';
-        link.setAttribute('download', 'whiteboard.png');
+
+        // misc? background download element
+        link.style.display = 'none';      // invisible
+        link.download = 'whiteboard.png'; // filename; make renameable? auto increment count, eg whiteboard_2.png?
+        // link.setAttribute('download', 'whiteboard.png');
     }
 
-    function initPen() {
+    function setDefaultPen() {
         // canvas context stroking
-        ctx.strokeStyle = foregroundColor;
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
+        setProperties(ctx, {
+            strokeStyle: foregroundColor,
+            lineWidth: 4,
+            lineCap: 'round',
+        });
     }
 
-    function defaultCursorStyle() {
-        cursor.style.display = 'block'
-        cursor.style.width = cursorWidth + 'px';
-        cursor.style.height = cursorWidth + 'px';
-        cursor.style.borderRadius = '50%';
-        cursor.style.background = foregroundColor;
-        cursor.style.border = 'none';
+    function setDefaultCursor() {
+        setStyle(cursor, {
+            display: 'block',
+            width: cursorWidth + 'px',
+            height: cursorWidth + 'px',
+            borderRadius: '50%',
+            background: foregroundColor,
+            border: 'none',
+        });
     }
+
+    function hideCursor() {
+      cursor.style.display = 'none'
+    }
+
+    function setEraserCursor() {
+        setStyle(cursor, {
+            borderRadius: '0%',
+            background: backgroundColor,
+            width: eraserWidth + 'px',
+            height: eraserWidth + 'px',
+            // border: '1px solid ' + foregroundColor,
+            border: '1px solid ' + invert(backgroundColor),
+        });
+    }
+
+    function setForegroundColor(newColor) {
+        foregroundColor = newColor;
+        ctx.strokeStyle = foregroundColor;
+        // if cursor.style.background is default(black or white), invert it now; else leave it alone
+        cursor.style.background = foregroundColor;
+    }
+
+    function setBackgroundColor(newColor) {
+        backgroundColor = newColor;
+        canvas.style.backgroundColor = backgroundColor;
+    }
+
+    function toggleDarkMode() {
+
+        setForegroundColor(backgroundColor);
+        setBackgroundColor(invert(backgroundColor));
+
+        // invert the paths of default color
+        paths = paths.map(pathObj => ({
+            path: pathObj.path,
+            // color: (pathObj.color == 'black' || pathObj.color == 'white') ?
+            color: (pathObj.color == backgroundColor) ?
+                // foregroundColor :
+                invert(backgroundColor) :
+                pathObj.color
+        }));
+        redrawAll();
+    }
+
+    /**** EVENT LISTENERS ****/
 
     function addEventListeners() {
+        // called once on page load
+
         // mouse events
-        canvas.addEventListener('mousedown', onMouseDown);
-        canvas.addEventListener('mouseup', onMouseUp);
-        canvas.addEventListener('mousemove', onMouseMove);
-        canvas.addEventListener('contextmenu', (e)=>e.preventDefault());
+        addListeners(canvas, {
+            'mousedown': onMouseDown,
+            'mouseup': onMouseUp,
+            'mousemove': onMouseMove,
+            'contextmenu': (e) => e.preventDefault(),
+        });
         // key events
-        window.addEventListener('keydown', onKeyPress);
-        window.addEventListener('keydown', onKeyToggleOn);
-        window.addEventListener('keyup', onKeyToggleOff);
+        addListeners(window, {
+            'keydown': (e) => {
+                onKeyPress(e);
+                onKeyToggleOn(e)
+            },
+            'keyup': onKeyToggleOff,
+        });
         // window events
-        window.addEventListener('resize', resize);
-        parent.addEventListener('mouseout', onMouseOut);
+        addListeners(window, {'resize'  : onResize});
+        addListeners(parent, {'mouseout': onMouseOut});
     }
 
-    // EVENT HANDLERS
     // window
 
-    function resize() {
+    function onResize() {
         canvas.width = canvas.clientWidth;
         canvas.height = canvas.clientHeight;
         origin = [canvas.width / 2, canvas.height / 2];
         // because board state has been reset:
-        initPen();
+        setDefaultPen();  // restore defult stroke
         redrawAll();
     }
 
@@ -305,7 +378,7 @@
                     setForegroundColor('blue');
                     break;
                 case 'f':
-                    setForegroundColor(backgroundColor == 'black' ? 'white' : 'black');
+                    setForegroundColor(invert(backgroundColor));
                     break;
                 case 'd':
                     toggleDarkMode();
@@ -313,7 +386,7 @@
         }
     }
 
-    // MAIN COMMANDS
+    /**** MAIN WHITEBOARD COMMANDS, BUSINESS LOGIC ****/
 
     function draw(e) {
 
@@ -342,7 +415,8 @@
         paths = paths.map(pathObj => {
             return {
                 path: pathObj.path.map(pt => translatePoint(pt, dx, dy)),
-                color: pathObj.color};
+                color: pathObj.color
+            };
         });
         clearAll();
         redrawAll();
@@ -433,10 +507,17 @@
     }
     */
 
-    let clearAll = () => ctx.clearRect(0, 0, canvas.width, canvas.height);  // just whites canvas but not data
-    let redrawAll = () => paths.map((path) => drawPath(path.path, path.color));
+    function clearAll() {
+      // just whites canvas but not data
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 
-    // HELPERS
+    function redrawAll() {
+      paths.map((path) => drawPath(path.path, path.color));
+    }
+
+    /**** HELPERS ****/
+
     // draw
 
     function startDraw(e) {
@@ -652,9 +733,6 @@
                 pt[1] <= box.ymax);
     }
 
-
-    // event handler callback helpers and misc for transitioning/detecting
-
     function getRelativeMousePos(e) {
         var rect = e.target.getBoundingClientRect();
         return [
@@ -677,38 +755,6 @@
                 pt[1] < rect.bottom);
     }
 
-    function setForegroundColor(newColor) {
-        foregroundColor = newColor;
-        ctx.strokeStyle = foregroundColor;
-        cursor.style.background = foregroundColor;
-    }
-
-    function setBackgroundColor(newColor) {
-        backgroundColor = newColor;
-        canvas.style.backgroundColor = backgroundColor;
-    }
-
-    function toggleDarkMode() {
-        if (backgroundColor == 'white') {
-            setBackgroundColor('black');
-            setForegroundColor('white');
-        } else {
-            setBackgroundColor('white');
-            setForegroundColor('black');
-        }
-        // redrawAll();  // need to redraw black paths as white, or vice versa,
-        //               // but doesn't work yet
-        paths = paths.map(pathObj => {
-            return {
-                path: pathObj.path,
-                color: (pathObj.color == 'black' || pathObj.color == 'white') ?
-                  foregroundColor :
-                  pathObj.color
-            };
-        });
-        redrawAll();
-    }
-
     function setMode(newMode) {
         switch (newMode) {
             case Modes.Zoom:
@@ -718,7 +764,8 @@
                 hideCursor();
                 break;
             case Modes.Erase:
-                eraserCursor();
+                // eraserCursor();
+                setEraserCursor();
         }
         currMode = newMode;
     }
@@ -734,20 +781,9 @@
 //            case Modes.Erase:
 //                eraseCursorOff();
 //        }
-        defaultCursorStyle();
+        // defaultCursorStyle();
+        setDefaultCursor();
         currMode = null;
-    }
-
-    let hideCursor = () => cursor.style.display = 'none';
-
-    function eraserCursor() {
-        cursor.style.borderRadius = '0%';
-        cursor.style.background = backgroundColor;
-        cursor.style.border = '1px solid black';
-        cursor.style.width = eraserWidth + 'px';
-        cursor.style.height = eraserWidth + 'px';
-        cursor.style.border = '1px solid white';//black;
-
     }
 
     // saving
@@ -764,7 +800,7 @@
         console.log(xmin, xmax, ymin, ymax);
 
         var margin = 100;
-        var totalWidth = (xmax - xmin) + 2*margin,
+        var totalWidth  = (xmax - xmin) + 2*margin,
             totalHeight = (ymax - ymin) + 2*margin;
 
         var tempCanvas = document.createElement('canvas');
@@ -789,7 +825,7 @@
         ctx = tempCtx;
         paths = tempPaths;
 
-        initPen();
+        setDefaultPen();
         ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         redrawAll();
@@ -802,10 +838,22 @@
         paths = oldPaths;
     }
 
+    // convenience, readability
+
+    let setStyle = (obj, styles) => Object.assign(obj.style, styles);
+    let setProperties = (obj, props) => Object.assign(obj, props);
+
+    // listeners = {'event type': function, ...}
+    let addListeners = (obj, listeners) => Object.keys(listeners).forEach(type => {
+        let callback = listeners[type];
+        obj.addEventListener(type, callback);
+    });
+
+    // opposite of black or white only
+    let invert = (color) => (color == 'white' ? 'black' : 'white');
+
     let min = (arr) => Math.min(...arr);
     let max = (arr) => Math.max(...arr);
-
-
 
 
     // command examples:
@@ -815,8 +863,8 @@
 
 
 
-    // export global whiteboard.init
+    /**** export globals ****/
 
-//    init(); //window.addEventListener('load', init());
-    window.whiteboard = {init: init};
+//    init(); //window.addEventListener('load', init());  // load automatically
+    window.whiteboard = {init: init}; // let caller decide when to load by using whiteboard.init()
 })();
