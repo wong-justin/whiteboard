@@ -2,7 +2,7 @@
 // Justin Wong
 
 // example usage:
-// var settings = {
+// let settings = {
 //     showOverlays: true,
 //     blackBackground: true;
 // };
@@ -261,7 +261,7 @@
     function onMouseDown(e) {
         switch (e.button) {
             case 0: // left click
-                if (currMode == Modes.Undo) {// && insideArea(e, undoControlArea)) {
+                if (currMode == Modes.Undo) {// && insideDiv(e, undoControlArea)) {
                     lastDirection = null;
                 }
                 else if (currMode === null) {
@@ -269,7 +269,7 @@
                 }
                 break;
             case 2: // right click
-                if (insideArea(e, zoomControlArea)) {
+                if (insideDiv(e, zoomControlArea)) {
                     setMode(Modes.Zoom);
                 }
                 else {
@@ -307,7 +307,7 @@
                 pan(e);
                 break;
             case Modes.Zoom:
-                var factor = calcZoomFactor(e);
+                let factor = calcZoomFactor(e);
                 zoom(factor);
                 break;
             case Modes.Undo:
@@ -320,7 +320,7 @@
 
 //        lastCoords[0] = e.clientX;
 //        lastCoords[1] =  e.clientY;
-        var mousePos = getRelativeMousePos(e);
+        let mousePos = getRelativeMousePos(e);
 
         lastCoords[0] = mousePos[0];
         lastCoords[1] = mousePos[1];
@@ -388,6 +388,8 @@
 
     /**** MAIN WHITEBOARD COMMANDS, BUSINESS LOGIC ****/
 
+    // create/delete paths
+
     function draw(e) {
 
 //        drawLine(lastCoords.x,
@@ -397,7 +399,7 @@
 //
 //        currPath.push([e.clientX, e.clientY]);
 
-        var mousePos = getRelativeMousePos(e);
+        let mousePos = getRelativeMousePos(e);
 
         drawLine(lastCoords[0],
                  lastCoords[1],
@@ -407,33 +409,8 @@
         currPath.push([mousePos[0], mousePos[1]]);
     }
 
-    function pan(e) {
-        var mousePos = getRelativeMousePos(e);
-        var dx = mousePos[0] - lastCoords[0];
-        var dy = mousePos[1] - lastCoords[1];
-
-        paths = paths.map(pathObj => {
-            return {
-                path: pathObj.path.map(pt => translatePoint(pt, dx, dy)),
-                color: pathObj.color
-            };
-        });
-        clearAll();
-        redrawAll();
-    }
-
-    function zoom(factor) {
-        paths = paths.map(pathObj => {
-            return {
-                path: pathObj.path.map(pt => scale(pt, factor, origin)),
-                color: pathObj.color};
-        });
-        clearAll();
-        redrawAll();
-    }
-
     function undo() {
-        var lastPath = paths.pop();
+        let lastPath = paths.pop();
         if (lastPath) {
 //            redoStack.push(lastPath);
             clearAll();
@@ -443,7 +420,7 @@
 
     /*
     function redo() {
-//        var undidPath = redoStack.pop();
+//        let undidPath = redoStack.pop();
 //        if (undidPath) {
 //            paths.push(undidPath);
 //            clearAll();
@@ -457,20 +434,20 @@
         // crossedPaths = paths.filter(path => isIntersecting(mousePos));
         // paths.pop(crossedPaths);
 
-        var erasedSomething = false;
+        let erasedSomething = false;
 
-        var mousePos = getRelativeMousePos(e);
-        var mouseMoveBox = boundingBox(mousePos, lastCoords);
+        let mousePos = getRelativeMousePos(e);
+        let mouseMoveBox = geometry.boundingBox(mousePos, lastCoords);
         mouseMoveBox.xmin -= eraserWidth / 2;
         mouseMoveBox.ymin -= eraserWidth / 2;
         mouseMoveBox.xmax += eraserWidth / 2;
         mouseMoveBox.ymax += eraserWidth / 2;
 
-        var i = paths.length - 1;
+        let i = paths.length - 1;
         for (i; i >=0; i--) {
-            var path = paths[i].path;
+            let path = paths[i].path;
 
-            if ( boxIntersectsPath(mouseMoveBox, path) ) {
+            if ( geometry.boxIntersectsPath(mouseMoveBox, path) ) {
                 paths.splice(i, 1);
                 erasedSomething = true;
             }
@@ -486,12 +463,12 @@
     function eraseAsAcceleratingWhitePath() {
         // increase line width for bigger strokes
 
-//        var dx = e.clientX - lastCoords[0];
-//        var dy = e.clientY - lastCoords[1];
-//        var dist = dx * dx + dy * dy;
+//        let dx = e.clientX - lastCoords[0];
+//        let dy = e.clientY - lastCoords[1];
+//        let dist = dx * dx + dy * dy;
 //
-//        var largeAcceleration = dist - lastDist > 10;
-//        var largeMovement = dist > 200;
+//        let largeAcceleration = dist - lastDist > 10;
+//        let largeMovement = dist > 200;
 //
 //        if (largeAcceleration || largeMovement) {
 //            ctx.lineWidth = Math.min(ctx.lineWidth + 10,
@@ -506,6 +483,33 @@
 //        draw(e);
     }
     */
+
+    // changing views
+
+    function pan(e) {
+        let mousePos = getRelativeMousePos(e);
+        let dx = mousePos[0] - lastCoords[0];
+        let dy = mousePos[1] - lastCoords[1];
+
+        paths = paths.map(pathObj => {
+            return {
+                path: pathObj.path.map(pt => geometry.translatePoint(pt, dx, dy)),
+                color: pathObj.color
+            };
+        });
+        clearAll();
+        redrawAll();
+    }
+
+    function zoom(factor) {
+        paths = paths.map(pathObj => {
+            return {
+                path: pathObj.path.map(pt => geometry.scale(pt, factor, origin)),
+                color: pathObj.color};
+        });
+        clearAll();
+        redrawAll();
+    }
 
     function clearAll() {
       // just whites canvas but not data
@@ -536,8 +540,8 @@
     function drawPath(path, color) {
         ctx.strokeStyle = color;    // temporarily set ctx color for this path
 
-        var i = 0;
-        var numPts = path.length;
+        let i = 0;
+        let numPts = path.length;
         lastPt = path[i];
         i += 1
         if (numPts == 1) {  // case of just a dot
@@ -570,48 +574,19 @@
         ctx.stroke();
     }
 
-    // zoom
-
-    function scale(pt, factor, origin) {
-        var rel = relativeTo(pt, origin);
-        var scaled = [
-            rel[0] * factor,
-            rel[1] * factor
-        ];
-        return unrelativeTo(scaled, origin);
-    }
-
-    function relativeTo(pt, origin) {
-        return [
-            pt[0] - origin[0],
-            pt[1] - origin[1]
-        ];
-    }
-
-    function unrelativeTo(pt, origin) {
-        return [
-            pt[0] + origin[0],
-            pt[1] + origin[1]
-        ];
-    }
+    // other
 
     function calcZoomFactor(e) {
-        var dy = e.clientY - lastCoords[1];
+        // helper for zoom command
+        let dy = e.clientY - lastCoords[1];
         dy = Math.min(dy, 90)  // avoid zooming by nonpositive factor:
         return 1 - (dy/100);    // arbitrary descaling by 100
     }
 
-    // pan
-
-    function translatePoint(pt, dx, dy) {
-        return [pt[0] + dx, pt[1] + dy];
-    }
-
-    // undo
-
     function switchedDirection(e) {
+        // helper for deprecated undo command (the back and forth accelerating one)
 
-        var currDirection = e.clientX > lastCoords[0];  // curr pos is right of prev pos
+        let currDirection = e.clientX > lastCoords[0];  // curr pos is right of prev pos
 
         //  if first stroke, set direction
         if (lastDirection == null) {
@@ -626,133 +601,20 @@
         else {return false;}    // hasn't switched direction yet
     }
 
-    // erase
-
-    /*
-    function lineIntersectsPath(p0, p1, path) {
-        var i = 0;
-        var lastPt = path[0];
-        i++;
-        var numPts = path.length;
-        while (i < numPts) {
-            var currPt = path[i];
-            if ( linesIntersect(p0, p1, lastPt, currPt) ) {
-                return true;
-            }
-
-            lastPt = currPt;
-            i++;
-        }
-        return false;
-    }
-    */
-
-    function boxIntersectsPath(box, path) {
-
-        var lastPt = path[0];
-        var numPts = path.length;
-        if (numPts == 1) {
-            return pointInBox(lastPt, box);
-        }
-
-        var i = 1;
-        while (i < numPts) {
-            var currPt = path[i];
-            if ( boxIntersectsLine(box, lastPt, currPt) ) {
-                return true;
-            }
-
-            lastPt = currPt;
-            i++;
-        }
-        return false;
-    }
-
-    function boxIntersectsLine(box, q0, q1) {
-        if ( boxesOverlap(box, boundingBox(q0, q1)) ) {
-            // check for real intersection
-
-            return true;
-        } else {return false;}  // doesn't pass this approx initial check
-    }
-
-    /*
-    function linesIntersect(p0, p1, q0, q1) {
-        var pBox = boundingBox(p0, p1);
-        var qBox = boundingBox(q0, q1);
-
-        if ( boxesOverlap(pBox, qBox) ) {
-            // check for real intersection
-            return true;
-
-        } else {return false;}  // doesn't pass this approx initial check
-    }
-    */
-
-    function boundingBox(ptA, ptB) {
-        var xmin,
-            xmax,
-            ymin,
-            ymax;
-
-        if (ptA[0] < ptB[0]) {
-            xmin = ptA[0];
-            xmax = ptB[0];
-        }
-        else {
-            xmin = ptB[0];
-            xmax = ptA[0];
-        }
-        if (ptA[1] < ptB[1]) {
-            ymin = ptA[1];
-            ymax = ptB[1];
-        }
-        else {
-            ymin = ptB[1];
-            ymax = ptA[1];
-        }
-//        return [xmin, xmax, ymin, ymax];
-        return {xmin:xmin, xmax:xmax, ymin:ymin, ymax:ymax};
-    }
-
-    function boxesOverlap(A, B) {
-        return (A.xmin < B.xmin &&
-                A.xmax > B.xmin &&
-                A.ymin < B.ymin &&
-                A.ymax > B.ymin) ||
-               (B.xmin < A.xmin &&
-                B.xmax > A.xmin &&
-                B.ymin < A.ymin &&
-                B.ymax > A.ymin);
-    }
-
-    function pointInBox(pt, box) {
-        return (pt[0] >= box.xmin &&
-                pt[0] <= box.xmax &&
-                pt[1] >= box.ymin &&
-                pt[1] <= box.ymax);
-    }
-
     function getRelativeMousePos(e) {
-        var rect = e.target.getBoundingClientRect();
+        // helper for erase command
+        let rect = e.target.getBoundingClientRect();
         return [
             e.clientX - rect.left,
             e.clientY - rect.top
         ];
     }
 
-    function insideArea(e, div) {
-        return ptInside(
+    function insideDiv(e, div) {
+        return geometry.pointInRect(
             [e.clientX, e.clientY],
             div.getBoundingClientRect()
         );
-    }
-
-    function ptInside(pt, rect) {
-        return (pt[0] > rect.left &&
-                pt[0] < rect.right &&
-                pt[1] > rect.top &&
-                pt[1] < rect.bottom);
     }
 
     function setMode(newMode) {
@@ -789,35 +651,35 @@
     // saving
 
     function save() {
-        var ptArrs = paths.map(pathObj => pathObj.path);
-        var xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
-        var ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
-        var xmin = min(xs),
-            xmax = max(xs),
-            ymin = min(ys),
-            ymax = max(ys);
+        let ptArrs = paths.map(pathObj => pathObj.path);
+        let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
+        let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
+        let left = geometry.min(xs),
+            right = geometry.max(xs),
+            bottom = geometry.min(ys),
+            top = geometry.max(ys);
 
-        console.log(xmin, xmax, ymin, ymax);
+        // console.log(xmin, xmax, ymin, ymax);
 
-        var margin = 100;
-        var totalWidth  = (xmax - xmin) + 2*margin,
-            totalHeight = (ymax - ymin) + 2*margin;
+        let margin = 100;
+        let totalWidth  = (right - left) + 2*margin,
+            totalHeight = (top - bottom) + 2*margin;
 
-        var tempCanvas = document.createElement('canvas');
-        var tempCtx = tempCanvas.getContext('2d');
+        let tempCanvas = document.createElement('canvas');
+        let tempCtx = tempCanvas.getContext('2d');
         tempCanvas.width = totalWidth;
         tempCanvas.height = totalHeight;
 
-        var tempPaths = paths.map(pathObj => {
+        let tempPaths = paths.map(pathObj => {
             return {
-                path: pathObj.path.map(pt => translatePoint(pt,
-                                                            -xmin + margin,
-                                                            -ymin + margin)),
+                path: pathObj.path.map(pt => geometry.translatePoint(pt,
+                                                                    -left + margin,
+                                                                    -bottom + margin)),
                 color: pathObj.color
             };
         });
 
-        var oldCtx = ctx,
+        let oldCtx = ctx,
             oldCanvas = canvas,
             oldPaths = paths;
 
@@ -852,19 +714,46 @@
     // opposite of black or white only
     let invert = (color) => (color == 'white' ? 'black' : 'white');
 
-    let min = (arr) => Math.min(...arr);
-    let max = (arr) => Math.max(...arr);
 
 
     // command examples:
-    //var drawCommand = {fn:drawPath, args: [...]}
-    //var eraseCommand = {fn:drawErasePath, path:}
+    //let drawCommand = {fn:drawPath, args: [...]}
+    //let eraseCommand = {fn:drawErasePath, path:}
     //translatePoint.apply(args);
+
+
+    // function undoCommand(func, ...args) {
+    //     switch (func) {
+    //         case drawPath:
+    //             return undoDrawPath(...args);
+    //         case erasePath:
+    //             return undoErasePath(...args);
+    //         case clearAll:
+    //             return undoClearAll(...args);
+    //     }
+    // }
+    //
+    // function redo(command, ...args) {
+    //
+    // }
+    //
+    // function undoDrawPath(path) {
+    //     let path = paths.pop(-1);
+    //     if (path) {
+    //         clearAll();
+    //         redrawAll();
+    //     }
+    //     history.append(drawPath, path);
+    // }
+    //
+    // function undoClearAll(paths) {
+    //
+    // }
 
 
 
     /**** export globals ****/
 
-//    init(); //window.addEventListener('load', init());  // load automatically
-    window.whiteboard = {init: init}; // let caller decide when to load by using whiteboard.init()
+    //    init(); //window.addEventListener('load', init());  // load automatically
+    window.whiteboard = {init,}; // let caller decide when to load by using whiteboard.init()
 })();

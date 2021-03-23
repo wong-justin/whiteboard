@@ -49,3 +49,6 @@ down the road...
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 
 - [x] export as image (ctrl-s)
+
+refactoring:
+- [ ] just use rects (L/R/T/B) instead of custom box objs (ymin/max/xmin/max)
