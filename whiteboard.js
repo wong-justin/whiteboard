@@ -468,11 +468,19 @@
     }
 
     function redo() {
-       let undidPath = redoStack.pop();
-       if (undidPath) {
-           paths.push(undidPath);
-           clearAll();
-           redrawAll();
+       let command = redoStack.pop();
+       if (command) {
+
+           switch (command.command) {
+               case Commands.DrawPath:
+
+                   break;
+
+               case Commands.ErasePaths:
+
+                   break;
+           }
+
        }
     }
 
@@ -485,21 +493,21 @@
         let erasedSomething = false;
 
         let mousePos = getRelativeMousePos(e);
-        let mouseMoveBox = geometry.boundingBox(mousePos, lastCoords);
-        geometry.expandRect(mouseMoveBox, eraserWidth / 2);
+        let mouseMoveBox = utils.boundingBox(mousePos, lastCoords);
+        utils.expandRect(mouseMoveBox, eraserWidth / 2);
 
         // let i = paths.length - 1;
         // for (i; i >=0; i--) {
         //     let path = paths[i].path;
         //
-        //     if ( geometry.boxIntersectsPath(mouseMoveBox, path) ) {
+        //     if ( utils.boxIntersectsPath(mouseMoveBox, path) ) {
         //         paths.splice(i, 1);
         //         erasedSomething = true;
         //     }
         // }
 
         paths.forEach((path, id) => {
-            if ( geometry.boxIntersectsPath(mouseMoveBox, path.path) ) {
+            if ( utils.boxIntersectsPath(mouseMoveBox, path.path) ) {
                 deleted.set(id, path);
                 paths.delete(id);
                 currErasures.push(id);
@@ -558,7 +566,7 @@
         let dy = mousePos[1] - lastCoords[1];
 
         paths = mapMap(paths, (p) => ({
-            path: p.path.map(pt => geometry.translatePoint(pt, dx, dy)),
+            path: p.path.map(pt => utils.translatePoint(pt, dx, dy)),
             color: p.color,
         }));
         clearAll();
@@ -568,12 +576,12 @@
     function zoom(factor) {
         // paths = paths.map(pathObj => {
         //     return {
-        //         path: pathObj.path.map(pt => geometry.scale(pt, factor, origin)),
+        //         path: pathObj.path.map(pt => utils.scale(pt, factor, origin)),
         //         color: pathObj.color};
         // });
 
         paths = mapMap(paths, (p) => ({
-            path: p.path.map(pt => geometry.scale(pt, factor, origin)),
+            path: p.path.map(pt => utils.scale(pt, factor, origin)),
             color: p.color,
         }));
         clearAll();
@@ -596,10 +604,10 @@
         let ptArrs = paths.map(pathObj => pathObj.path);
         let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
         let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
-        let left = geometry.min(xs),
-            right = geometry.max(xs),
-            bottom = geometry.min(ys),
-            top = geometry.max(ys);
+        let left = utils.min(xs),
+            right = utils.max(xs),
+            bottom = utils.min(ys),
+            top = utils.max(ys);
 
         // console.log(xmin, xmax, ymin, ymax);
 
@@ -615,7 +623,7 @@
         let tempPaths = paths.map(pathObj => {
             return {
                 path: pathObj.path.map(
-                  pt => geometry.translatePoint(pt,
+                  pt => utils.translatePoint(pt,
                                                 -left + margin,
                                                 -bottom + margin)
                 ),
@@ -762,7 +770,7 @@
     }
 
     function insideDiv(e, div) {
-        return geometry.pointInRect(
+        return utils.pointInRect(
             [e.clientX, e.clientY],
             div.getBoundingClientRect()
         );
