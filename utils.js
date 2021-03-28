@@ -49,18 +49,18 @@
     }
     */
 
-    function boxIntersectsPath(box, path) {
+    function rectIntersectsPath(rect, path) {
 
         let lastPt = path[0];
         let numPts = path.length;
         if (numPts == 1) {
-            return pointInRect(lastPt, box);
+            return pointInRect(lastPt, rect);
         }
 
         let i = 1;
         while (i < numPts) {
             let currPt = path[i];
-            if ( boxIntersectsLine(box, lastPt, currPt) ) {
+            if ( rectIntersectsLine(rect, lastPt, currPt) ) {
                 return true;
             }
 
@@ -70,8 +70,8 @@
         return false;
     }
 
-    function boxIntersectsLine(box, q0, q1) {
-        if ( boxesOverlap(box, boundingBox(q0, q1)) ) {
+    function rectIntersectsLine(rect, q0, q1) {
+        if ( rectesOverlap(rect, boundingBox(q0, q1)) ) {
             // check for real intersection
 
             return true;
@@ -83,7 +83,7 @@
         let pBox = boundingBox(p0, p1);
         let qBox = boundingBox(q0, q1);
 
-        if ( boxesOverlap(pBox, qBox) ) {
+        if ( rectesOverlap(pBox, qBox) ) {
             // check for real intersection
             return true;
 
@@ -116,7 +116,7 @@
         return {left, right, bottom, top};
     }
 
-    function boxesOverlap(A, B) {
+    function rectesOverlap(A, B) {
         return (A.left   < B.left   &&
                 A.right  > B.left   &&
                 A.bottom < B.bottom &&
@@ -180,10 +180,10 @@
         relativeTo,
         unrelativeTo,
         translatePoint,
-        boxIntersectsPath,
-        boxIntersectsLine,
+        rectIntersectsPath,
+        rectIntersectsLine,
         boundingBox,
-        boxesOverlap,
+        rectesOverlap,
         pointInRect,
         expandRect,
         min,

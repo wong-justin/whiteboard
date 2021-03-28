@@ -392,13 +392,13 @@
 
     /**** MAIN WHITEBOARD COMMANDS, BUSINESS LOGIC ****/
 
-    // create/delete paths
+    // changing data
 
     function draw(e) {
 
         let mousePos = getRelativeMousePos(e);
 
-        drawLine(...lastCoords, ...mousePos);
+        drawLine(lastCoords, mousePos);
 
         currPath.push(mousePos);
     }
@@ -416,7 +416,7 @@
         utils.expandRect(mouseMoveBox, eraserWidth / 2);
 
         paths.forEach((path, id) => {
-            if ( utils.boxIntersectsPath(mouseMoveBox, path.path) ) {
+            if ( utils.rectIntersectsPath(mouseMoveBox, path.path) ) {
                 deleted.set(id, path);
                 paths.delete(id);
                 currErasures.push(id);
@@ -431,12 +431,13 @@
     }
 
     function eraseAllPaths() {
+        if (paths.size > 0) {
+            history.push({command: Command.ErasePaths, arg: Array.from(paths.keys())})
+            deleted = deleted.merge(paths);
+            paths.clear();
 
-        history.push({command: Command.ErasePaths, arg: Array.from(paths.keys())})
-        deleted = deleted.merge(paths);
-        paths.clear();
-
-        clearScreen();
+            clearScreen();
+        }
     }
 
     function undo() {
@@ -650,20 +651,14 @@
         lastPt = path[i];
         i += 1
         if (numPts == 1) {  // case of just a dot
-            drawLine(lastPt[0],
-                     lastPt[1],
-                     lastPt[0],
-                     lastPt[1]);
+            drawLine(lastPt, lastPt);
             return;
         }
 
         while (i < numPts) {
 
             currPt = path[i];
-            drawLine(lastPt[0],
-                     lastPt[1],
-                     currPt[0],
-                     currPt[1]);
+            drawLine(lastPt, currPt);
 
             lastPt = currPt;
             i += 1;
@@ -672,10 +667,10 @@
         ctx.strokeStyle = Color.foreground;  // return to old
     }
 
-    function drawLine(x0, y0, x1, y1) {
+    function drawLine(pt1, pt2) {
         ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
+        ctx.moveTo(...pt1);
+        ctx.lineTo(...pt2);
         ctx.stroke();
     }
 
