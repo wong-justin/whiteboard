@@ -67,29 +67,29 @@
     let eraserWidth = 12;
 
     function showHelpMessage() {
-      let message = `
-        Controls:
+        let message = `
+          Controls:
 
-        Shift + mouse move
-         - erase
-        Space
-         - erase all
-        Right click + mouse move
-         - pan
-        Right click upper right margin + mouse move up/down
-         - zoom in/out
-        R,G,B
-         - pen colors
-        F
-         - default pen color (white or black)
-        Ctrl + Z
-         - erase last path
-        Ctrl + S
-         - save as image
-        D
-         - toggle dark mode
-      `.replace(/  +/g, '');  // remove indents
-      console.log(message);
+          Shift + mouse move
+           - erase
+          Space
+           - erase all
+          Right click + mouse move
+           - pan
+          Right click upper right margin + mouse move up/down
+           - zoom in/out
+          R,G,B
+           - pen colors
+          F
+           - default pen color (white or black)
+          Ctrl + Z
+           - erase last path
+          Ctrl + S
+           - save as image
+          D
+           - toggle dark mode
+        `.replace(/  +/g, '');  // remove indents
+        console.log(message);
     }
 
     function init(settings) {
@@ -115,7 +115,7 @@
             height: '100vh',  // full window area. 100vh != 100%
             width: '100vw',
             backgroundColor: backgroundColor,
-            // border: '1px solid black';
+            // border: '1px solid black';   // outline if embedded in other page content
         });
 
         // control area(s)
@@ -137,7 +137,6 @@
             position: 'fixed',
             pointerEvents: 'none',
         });
-
 
         // misc? background download element
         link.style.display = 'none';      // invisible
@@ -198,15 +197,19 @@
         setBackgroundColor(invert(backgroundColor));
 
         // invert the paths of default color
-        paths = paths.map(pathObj => ({
-            path: pathObj.path,
-            // color: (pathObj.color == 'black' || pathObj.color == 'white') ?
-            color: (pathObj.color == backgroundColor) ?
-                // foregroundColor :
-                invert(backgroundColor) :
-                pathObj.color
-        }));
+        paths = paths.map(invertPathColor);
+        clearAll();
         redrawAll();
+    }
+
+    function invertPathColor(path) {
+      // change black to white or vice versa; leave other colors alone
+        return {
+            path: path.path,
+            color: (path.color == backgroundColor) ?
+                invert(backgroundColor) :
+                path.color
+        }
     }
 
     /**** EVENT LISTENERS ****/
@@ -517,12 +520,78 @@
     }
 
     function redrawAll() {
-      paths.map((path) => drawPath(path.path, path.color));
+      paths.forEach((path) => drawPath(path.path, path.color));
     }
+
+    // I/O
+
+    function save() {
+        let ptArrs = paths.map(pathObj => pathObj.path);
+        let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
+        let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
+        let left = geometry.min(xs),
+            right = geometry.max(xs),
+            bottom = geometry.min(ys),
+            top = geometry.max(ys);
+
+        // console.log(xmin, xmax, ymin, ymax);
+
+        let margin = 100;
+        let totalWidth  = (right - left) + 2*margin,
+            totalHeight = (top - bottom) + 2*margin;
+
+        let tempCanvas = document.createElement('canvas');
+        let tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = totalWidth;
+        tempCanvas.height = totalHeight;
+
+        let tempPaths = paths.map(pathObj => {
+            return {
+                path: pathObj.path.map(
+                  pt => geometry.translatePoint(pt,
+                                                -left + margin,
+                                                -bottom + margin)
+                ),
+                color: pathObj.color
+            };
+        });
+
+        let oldCtx = ctx,
+            oldCanvas = canvas,
+            oldPaths = paths;
+
+        canvas = tempCanvas;
+        ctx = tempCtx;
+        paths = tempPaths;
+
+        setDefaultPen();
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        redrawAll();
+
+        // create and download file
+        link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+        link.click();
+
+        canvas = oldCanvas;
+        ctx = oldCtx;
+        paths = oldPaths;
+    }
+
+    // function export() {
+    //
+    //     link.href = JSON.writes(paths);
+    //
+    //
+    // }
+    //
+    // function import() {
+    //
+    // }
 
     /**** HELPERS ****/
 
-    // draw
+    // drawing
 
     function startDraw(e) {
         setMode(Modes.Pen);
@@ -583,6 +652,7 @@
         return 1 - (dy/100);    // arbitrary descaling by 100
     }
 
+    /*
     function switchedDirection(e) {
         // helper for deprecated undo command (the back and forth accelerating one)
 
@@ -600,6 +670,7 @@
         }
         else {return false;}    // hasn't switched direction yet
     }
+    */
 
     function getRelativeMousePos(e) {
         // helper for erase command
@@ -648,59 +719,7 @@
         currMode = null;
     }
 
-    // saving
-
-    function save() {
-        let ptArrs = paths.map(pathObj => pathObj.path);
-        let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
-        let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
-        let left = geometry.min(xs),
-            right = geometry.max(xs),
-            bottom = geometry.min(ys),
-            top = geometry.max(ys);
-
-        // console.log(xmin, xmax, ymin, ymax);
-
-        let margin = 100;
-        let totalWidth  = (right - left) + 2*margin,
-            totalHeight = (top - bottom) + 2*margin;
-
-        let tempCanvas = document.createElement('canvas');
-        let tempCtx = tempCanvas.getContext('2d');
-        tempCanvas.width = totalWidth;
-        tempCanvas.height = totalHeight;
-
-        let tempPaths = paths.map(pathObj => {
-            return {
-                path: pathObj.path.map(pt => geometry.translatePoint(pt,
-                                                                    -left + margin,
-                                                                    -bottom + margin)),
-                color: pathObj.color
-            };
-        });
-
-        let oldCtx = ctx,
-            oldCanvas = canvas,
-            oldPaths = paths;
-
-        canvas = tempCanvas;
-        ctx = tempCtx;
-        paths = tempPaths;
-
-        setDefaultPen();
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        redrawAll();
-
-        link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
-        link.click();
-
-        canvas = oldCanvas;
-        ctx = oldCtx;
-        paths = oldPaths;
-    }
-
-    // convenience, readability
+    // convenience
 
     let setStyle = (obj, styles) => Object.assign(obj.style, styles);
     let setProperties = (obj, props) => Object.assign(obj, props);
@@ -716,39 +735,7 @@
 
 
 
-    // command examples:
-    //let drawCommand = {fn:drawPath, args: [...]}
-    //let eraseCommand = {fn:drawErasePath, path:}
-    //translatePoint.apply(args);
 
-
-    // function undoCommand(func, ...args) {
-    //     switch (func) {
-    //         case drawPath:
-    //             return undoDrawPath(...args);
-    //         case erasePath:
-    //             return undoErasePath(...args);
-    //         case clearAll:
-    //             return undoClearAll(...args);
-    //     }
-    // }
-    //
-    // function redo(command, ...args) {
-    //
-    // }
-    //
-    // function undoDrawPath(path) {
-    //     let path = paths.pop(-1);
-    //     if (path) {
-    //         clearAll();
-    //         redrawAll();
-    //     }
-    //     history.append(drawPath, path);
-    // }
-    //
-    // function undoClearAll(paths) {
-    //
-    // }
 
 
 
