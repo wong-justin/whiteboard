@@ -76,18 +76,10 @@
             return this.count++;
         }
     }
-    let paths = new Map();
-    let deleted = new Map();
+    let paths = new utils.MyMap();
+    let deleted = new utils.MyMap();
     let history = [];
     const Commands = {DrawPath: 1, ErasePaths: 2}//, EraseAll: 3}
-
-    /*
-    paths.set(id, obj)
-    paths.has(id)
-    paths.delete(id)
-    paths.size
-    */
-
 
     function showHelpMessage() {
         let message = `
@@ -133,7 +125,7 @@
         // canvas
         parent.insertBefore(canvas, parent.firstChild); //parent.appendChild(canvas);
         parent.style.margin = '0%'; // full window area
-        setStyle(canvas, {
+        utils.setStyle(canvas, {
             display: 'block', // prevent scrollbars
             height: '100vh',  // full window area. 100vh != 100%
             width: '100vw',
@@ -143,7 +135,7 @@
 
         // control area(s)
         document.body.appendChild(zoomControlArea);
-        setStyle(zoomControlArea, {
+        utils.setStyle(zoomControlArea, {
             position: 'fixed',
             right: '0px',
             top: '100px',
@@ -156,7 +148,7 @@
         // cursor
         parent.style.cursor = 'none'; // get rid of default mouse pointer
         document.body.appendChild(cursor);
-        setStyle(cursor, {
+        utils.setStyle(cursor, {
             position: 'fixed',
             pointerEvents: 'none',
         });
@@ -169,7 +161,7 @@
 
     function setDefaultPen() {
         // canvas context stroking
-        setProperties(ctx, {
+        utils.setProperties(ctx, {
             strokeStyle: foregroundColor,
             lineWidth: 4,
             lineCap: 'round',
@@ -177,7 +169,7 @@
     }
 
     function setDefaultCursor() {
-        setStyle(cursor, {
+        utils.setStyle(cursor, {
             display: 'block',
             width: cursorWidth + 'px',
             height: cursorWidth + 'px',
@@ -192,13 +184,13 @@
     }
 
     function setEraserCursor() {
-        setStyle(cursor, {
+        utils.setStyle(cursor, {
             borderRadius: '0%',
             background: backgroundColor,
             width: eraserWidth + 'px',
             height: eraserWidth + 'px',
             // border: '1px solid ' + foregroundColor,
-            border: '1px solid ' + invert(backgroundColor),
+            border: '1px solid ' + utils.invert(backgroundColor),
         });
     }
 
@@ -217,7 +209,7 @@
     function toggleDarkMode() {
 
         setForegroundColor(backgroundColor);
-        setBackgroundColor(invert(backgroundColor));
+        setBackgroundColor(utils.invert(backgroundColor));
 
         // invert the paths of default color
         paths = paths.map(invertPathColor);
@@ -230,7 +222,7 @@
         return {
             path: path.path,
             color: (path.color == backgroundColor) ?
-                invert(backgroundColor) :
+                utils.invert(backgroundColor) :
                 path.color
         }
     }
@@ -241,14 +233,14 @@
         // called once on page load
 
         // mouse events
-        addListeners(canvas, {
+        utils.addListeners(canvas, {
             'mousedown': onMouseDown,
             'mouseup': onMouseUp,
             'mousemove': onMouseMove,
             'contextmenu': (e) => e.preventDefault(),
         });
         // key events
-        addListeners(window, {
+        utils.addListeners(window, {
             'keydown': (e) => {
                 onKeyPress(e);
                 onKeyToggleOn(e)
@@ -256,8 +248,8 @@
             'keyup': onKeyToggleOff,
         });
         // window events
-        addListeners(window, {'resize'  : onResize});
-        addListeners(parent, {'mouseout': onMouseOut});
+        utils.addListeners(window, {'resize'  : onResize});
+        utils.addListeners(parent, {'mouseout': onMouseOut});
     }
 
     // window
@@ -409,7 +401,7 @@
                     setForegroundColor('blue');
                     break;
                 case 'f':
-                    setForegroundColor(invert(backgroundColor));
+                    setForegroundColor(utils.invert(backgroundColor));
                     break;
                 case 'd':
                     toggleDarkMode();
@@ -527,8 +519,8 @@
         // clearAll();
 
         history.push({command: Commands.ErasePaths, arg: Array.from(paths.keys())})
-        deleted = mapMerge(paths, deleted);
-        paths = new Map();
+        deleted = deleted.merge(paths);
+        paths = new utils.MyMap();
 
         clearAll();
     }
@@ -565,7 +557,7 @@
         let dx = mousePos[0] - lastCoords[0];
         let dy = mousePos[1] - lastCoords[1];
 
-        paths = mapMap(paths, (p) => ({
+        paths = paths.map(p => ({
             path: p.path.map(pt => utils.translatePoint(pt, dx, dy)),
             color: p.color,
         }));
@@ -580,7 +572,7 @@
         //         color: pathObj.color};
         // });
 
-        paths = mapMap(paths, (p) => ({
+        paths = paths.map(p => ({
             path: p.path.map(pt => utils.scale(pt, factor, origin)),
             color: p.color,
         }));
@@ -807,32 +799,8 @@
         currMode = null;
     }
 
-    function mapMap(map, fn) {
-        // fn(val)
-        // mapMap({A: 2, B:4}, (v) => v+1) = {A:3, B:5}
-        return new Map( Array.from(map, ([k,v]) => [k, fn(v)]) );
-    }
 
-    function mapMerge(map1, map2) {
-        return new Map(function*() {
-            yield* map1;
-            yield* map2;
-        }());
-    }
 
-    // convenience
-
-    let setStyle = (obj, styles) => Object.assign(obj.style, styles);
-    let setProperties = (obj, props) => Object.assign(obj, props);
-
-    // listeners = {'event type': function, ...}
-    let addListeners = (obj, listeners) => Object.keys(listeners).forEach(type => {
-        let callback = listeners[type];
-        obj.addEventListener(type, callback);
-    });
-
-    // opposite of black or white only
-    let invert = (color) => (color == 'white' ? 'black' : 'white');
 
 
 
