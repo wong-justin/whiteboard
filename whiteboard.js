@@ -36,8 +36,11 @@
 //  BLACK: 'black',
 //  foreground: 'white',
 //  background:
-// toggleDarkMode: () => {}
+//  toggleDarkMode: () => {}
 // }
+
+// path:
+// {id, points, color}
 
 (() => {
     // html elements
@@ -57,14 +60,34 @@
     let lastDist = 0;
     let lastDirection = null;
     let penDown = false;
-    let paths = [];
+    // let paths = [];
 //    let commandStack = [];
 //    let redoStack = [];
     let backgroundColor = 'black';  // eraser
     let foregroundColor = 'white';  // current pen
     let currPath = [];
+    let currErasures = [];
     let cursorWidth = 6;
     let eraserWidth = 12;
+
+    let ID = {
+        count: 0,
+        new: function() {
+            return this.count++;
+        }
+    }
+    let paths = new Map();
+    let deleted = new Map();
+    let history = [];
+    const Commands = {DrawPath: 1, ErasePaths: 2}//, EraseAll: 3}
+
+    /*
+    paths.set(id, obj)
+    paths.has(id)
+    paths.delete(id)
+    paths.size
+    */
+
 
     function showHelpMessage() {
         let message = `
@@ -289,8 +312,12 @@
 //                    unsetMode();
 //                }
                 if (currMode == Modes.Pen) {
-                    stopDraw(e);
+                    stopDraw();
                 }
+                // if (currMode == Modes.Erase) {
+                //     stopErase();
+                // }
+                unsetMode();
                 break;
             case 2: // right click
                 unsetMode();
@@ -344,12 +371,14 @@
     function onKeyToggleOff(e) {
         switch (e.key) {
             case 'Shift':
+                if (currMode == Modes.Erase) {
+                    stopErase();
+                }
                 unsetMode();
         }
     }
 
     function onKeyPress(e) {
-//        console.log(e.key)
 
         if (e.ctrlKey) {
             switch (e.key) {
@@ -368,8 +397,7 @@
         else{
             switch (e.key) {
                 case ' ':   // clear canvas and data
-                    paths = [];
-                    clearAll();
+                    eraseAllPaths();
                     break;
                 case 'r':
                     setForegroundColor('red');
@@ -395,13 +423,6 @@
 
     function draw(e) {
 
-//        drawLine(lastCoords.x,
-//                 lastCoords.y,
-//                 e.clientX,
-//                 e.clientY);
-//
-//        currPath.push([e.clientX, e.clientY]);
-
         let mousePos = getRelativeMousePos(e);
 
         drawLine(lastCoords[0],
@@ -413,26 +434,50 @@
     }
 
     function undo() {
-        let lastPath = paths.pop();
-        if (lastPath) {
-//            redoStack.push(lastPath);
+//         let lastPath = paths.pop();
+//         if (lastPath) {
+// //            redoStack.push(lastPath);
+//             clearAll();
+//             redrawAll();
+//         }
+
+        let command = history.pop();
+        console.log(command)
+        if (command) {
+            switch (command.command) {
+                case Commands.DrawPath:
+                    let id = command.arg;
+                    let path = paths.get(id);
+                    paths.delete(id);
+                    deleted.set(id, path);
+                    break;
+
+                case Commands.ErasePaths:
+                    let ids = command.arg;
+                    ids.forEach(id => {
+                        let path = deleted.get(id);
+                        deleted.delete(id);
+                        paths.set(id, path);
+                    })
+                    break;
+            }
+
             clearAll();
             redrawAll();
         }
     }
 
-    /*
     function redo() {
-//        let undidPath = redoStack.pop();
-//        if (undidPath) {
-//            paths.push(undidPath);
-//            clearAll();
-//            redrawAll();
-//        }
+       let undidPath = redoStack.pop();
+       if (undidPath) {
+           paths.push(undidPath);
+           clearAll();
+           redrawAll();
+       }
     }
-    */
 
     function erase(e) {
+      // need to fix case for single dot
 
         // crossedPaths = paths.filter(path => isIntersecting(mousePos));
         // paths.pop(crossedPaths);
@@ -441,25 +486,43 @@
 
         let mousePos = getRelativeMousePos(e);
         let mouseMoveBox = geometry.boundingBox(mousePos, lastCoords);
-        mouseMoveBox.xmin -= eraserWidth / 2;
-        mouseMoveBox.ymin -= eraserWidth / 2;
-        mouseMoveBox.xmax += eraserWidth / 2;
-        mouseMoveBox.ymax += eraserWidth / 2;
+        geometry.expandRect(mouseMoveBox, eraserWidth / 2);
 
-        let i = paths.length - 1;
-        for (i; i >=0; i--) {
-            let path = paths[i].path;
+        // let i = paths.length - 1;
+        // for (i; i >=0; i--) {
+        //     let path = paths[i].path;
+        //
+        //     if ( geometry.boxIntersectsPath(mouseMoveBox, path) ) {
+        //         paths.splice(i, 1);
+        //         erasedSomething = true;
+        //     }
+        // }
 
-            if ( geometry.boxIntersectsPath(mouseMoveBox, path) ) {
-                paths.splice(i, 1);
+        paths.forEach((path, id) => {
+            if ( geometry.boxIntersectsPath(mouseMoveBox, path.path) ) {
+                deleted.set(id, path);
+                paths.delete(id);
+                currErasures.push(id);
                 erasedSomething = true;
             }
-        }
+        });
 
         if (erasedSomething) {
             clearAll();
             redrawAll();
+            // history.push({command: Commands.ErasePaths, arg: overlapped});
         }
+    }
+
+    function eraseAllPaths() {
+        // paths = [];
+        // clearAll();
+
+        history.push({command: Commands.ErasePaths, arg: Array.from(paths.keys())})
+        deleted = mapMerge(paths, deleted);
+        paths = new Map();
+
+        clearAll();
     }
 
     /*
@@ -494,33 +557,37 @@
         let dx = mousePos[0] - lastCoords[0];
         let dy = mousePos[1] - lastCoords[1];
 
-        paths = paths.map(pathObj => {
-            return {
-                path: pathObj.path.map(pt => geometry.translatePoint(pt, dx, dy)),
-                color: pathObj.color
-            };
-        });
+        paths = mapMap(paths, (p) => ({
+            path: p.path.map(pt => geometry.translatePoint(pt, dx, dy)),
+            color: p.color,
+        }));
         clearAll();
         redrawAll();
     }
 
     function zoom(factor) {
-        paths = paths.map(pathObj => {
-            return {
-                path: pathObj.path.map(pt => geometry.scale(pt, factor, origin)),
-                color: pathObj.color};
-        });
+        // paths = paths.map(pathObj => {
+        //     return {
+        //         path: pathObj.path.map(pt => geometry.scale(pt, factor, origin)),
+        //         color: pathObj.color};
+        // });
+
+        paths = mapMap(paths, (p) => ({
+            path: p.path.map(pt => geometry.scale(pt, factor, origin)),
+            color: p.color,
+        }));
         clearAll();
         redrawAll();
     }
 
     function clearAll() {
-      // just whites canvas but not data
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // just whites canvas but not data
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     function redrawAll() {
-      paths.forEach((path) => drawPath(path.path, path.color));
+        // paths.forEach((path) => drawPath(path.path, path.color));
+        paths.forEach((path, _) => drawPath(path.path, path.color));
     }
 
     // I/O
@@ -578,16 +645,18 @@
         paths = oldPaths;
     }
 
-    // function export() {
-    //
-    //     link.href = JSON.writes(paths);
-    //
-    //
-    // }
-    //
-    // function import() {
-    //
-    // }
+    /*
+    function export() {
+
+        link.href = JSON.writes(paths);
+
+
+    }
+
+    function import() {
+
+    }
+    */
 
     /**** HELPERS ****/
 
@@ -599,11 +668,22 @@
         draw(e);    // draw a dot, covering case of single click
     }
 
-    function stopDraw(e) {
-        paths.push({path:currPath, color:foregroundColor}); // finish curr path
+    function stopDraw() {
+        let id = ID.new();
+        paths.set(id, {path:currPath, color:foregroundColor});
+        history.push({command: Commands.DrawPath, arg: id});
+
+        // paths.push({path:currPath, color:foregroundColor}); // finish curr path
 //        commandStack.push({fn: drawPath, path:currPath, color: foregroundColor});
 
-        unsetMode();
+        // unsetMode();
+    }
+
+    function stopErase() {
+        if (currErasures.length > 0) {
+            history.push({command: Commands.ErasePaths, arg: currErasures});
+            currErasures = [];
+        }
     }
 
     function drawPath(path, color) {
@@ -719,6 +799,19 @@
         currMode = null;
     }
 
+    function mapMap(map, fn) {
+        // fn(val)
+        // mapMap({A: 2, B:4}, (v) => v+1) = {A:3, B:5}
+        return new Map( Array.from(map, ([k,v]) => [k, fn(v)]) );
+    }
+
+    function mapMerge(map1, map2) {
+        return new Map(function*() {
+            yield* map1;
+            yield* map2;
+        }());
+    }
+
     // convenience
 
     let setStyle = (obj, styles) => Object.assign(obj.style, styles);
@@ -743,4 +836,7 @@
 
     //    init(); //window.addEventListener('load', init());  // load automatically
     window.whiteboard = {init,}; // let caller decide when to load by using whiteboard.init()
+
+    window.p = () => paths;
+    window.h = history
 })();
