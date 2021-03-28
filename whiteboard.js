@@ -398,21 +398,48 @@
 
         let mousePos = getRelativeMousePos(e);
 
-        drawLine(lastCoords[0],
-                 lastCoords[1],
-                 mousePos[0],
-                 mousePos[1]);
+        drawLine(...lastCoords, ...mousePos);
 
-        currPath.push([mousePos[0], mousePos[1]]);
+        currPath.push(mousePos);
+    }
+
+    function erase(e) {
+        // need to fix case for single dot
+
+        // crossedPaths = paths.filter(path => isIntersecting(mousePos));
+        // paths.pop(crossedPaths);
+
+        let erasedSomething = false;
+
+        let mousePos = getRelativeMousePos(e);
+        let mouseMoveBox = utils.boundingBox(mousePos, lastCoords);
+        utils.expandRect(mouseMoveBox, eraserWidth / 2);
+
+        paths.forEach((path, id) => {
+            if ( utils.boxIntersectsPath(mouseMoveBox, path.path) ) {
+                deleted.set(id, path);
+                paths.delete(id);
+                currErasures.push(id);
+                erasedSomething = true;
+            }
+        });
+
+        if (erasedSomething) {
+            clearScreen();
+            redrawAll();
+        }
+    }
+
+    function eraseAllPaths() {
+
+        history.push({command: Command.ErasePaths, arg: Array.from(paths.keys())})
+        deleted = deleted.merge(paths);
+        paths.clear();
+
+        clearScreen();
     }
 
     function undo() {
-//         let lastPath = paths.pop();
-//         if (lastPath) {
-// //            redoStack.push(lastPath);
-//             clearScreen();
-//             redrawAll();
-//         }
 
         let command = history.pop();
         console.log(command)
@@ -454,44 +481,7 @@
                    break;
            }
 
-       }
-    }
-
-    function erase(e) {
-        // need to fix case for single dot
-
-        // crossedPaths = paths.filter(path => isIntersecting(mousePos));
-        // paths.pop(crossedPaths);
-
-        let erasedSomething = false;
-
-        let mousePos = getRelativeMousePos(e);
-        let mouseMoveBox = utils.boundingBox(mousePos, lastCoords);
-        utils.expandRect(mouseMoveBox, eraserWidth / 2);
-
-        paths.forEach((path, id) => {
-            if ( utils.boxIntersectsPath(mouseMoveBox, path.path) ) {
-                deleted.set(id, path);
-                paths.delete(id);
-                currErasures.push(id);
-                erasedSomething = true;
-            }
-        });
-
-        if (erasedSomething) {
-            clearScreen();
-            redrawAll();
-            // history.push({command: Command.ErasePaths, arg: overlapped});
-        }
-    }
-
-    function eraseAllPaths() {
-
-        history.push({command: Command.ErasePaths, arg: Array.from(paths.keys())})
-        deleted = deleted.merge(paths);
-        paths.clear();
-
-        clearScreen();
+      }
     }
 
     /*
@@ -555,22 +545,21 @@
     }
 
     function redrawAll() {
-        // paths.forEach((path) => drawPath(path.path, path.color));
         paths.forEach((path, _) => drawPath(path.path, path.color));
     }
 
     // I/O
 
     function save() {
-        let ptArrs = paths.map(pathObj => pathObj.path);
+        let ptArrs = Array.from(paths.values()).map(p => p.path);
         let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
         let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
-        let left = utils.min(xs),
-            right = utils.max(xs),
+        let left   = utils.min(xs),
+            right  = utils.max(xs),
             bottom = utils.min(ys),
-            top = utils.max(ys);
+            top    = utils.max(ys);
 
-        // console.log(xmin, xmax, ymin, ymax);
+        console.log(left, right, top, bottom);
 
         let margin = 100;
         let totalWidth  = (right - left) + 2*margin,
@@ -581,16 +570,14 @@
         tempCanvas.width = totalWidth;
         tempCanvas.height = totalHeight;
 
-        let tempPaths = paths.map(pathObj => {
-            return {
-                path: pathObj.path.map(
-                  pt => utils.translatePoint(pt,
-                                                -left + margin,
-                                                -bottom + margin)
-                ),
-                color: pathObj.color
-            };
-        });
+        let tempPaths = paths.map(pathObj => ({
+            path: pathObj.path.map(
+                 pt => utils.translatePoint(pt,
+                                            -left + margin,
+                                            -bottom + margin)
+            ),
+            color: pathObj.color
+        }));
 
         let oldCtx = ctx,
             oldCanvas = canvas,
@@ -759,7 +746,16 @@
 
 
 
-
+    // document.addEventListener('copy', function(e) {
+    //   // e.clipboardData is initially empty, but we can set it to the
+    //   // data that we want copied onto the clipboard.
+    //   e.clipboardData.setData('text/plain', 'Hello, world!');
+    //   e.clipboardData.setData('text/html', '<b>Hello, world!</b>');
+    //
+    //   // This is necessary to prevent the current document selection from
+    //   // being written to the clipboard.
+    //   e.preventDefault();
+    // });
 
 
 
