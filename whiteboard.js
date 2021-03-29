@@ -36,20 +36,6 @@
     // some constants, enums
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
     const Command = {CREATE_PATH: 1, DELETE_PATHS: 2}
-    // let CommandManager = {
-    //     _enumCount: 0,
-    //     addType({type, execute, undo}) {
-    //       // this.setAttribute(type, this._enumCount++);
-    //       this.executeHandlers[type] = execute;
-    //       this.undoHandlers[type] = undo
-    //     },
-    //     execute({type, args, perform:true}) {
-    //       if (perform) {
-    //         this.executeHandlers[type](...args);
-    //       }
-    //       this.history.push({type, args});
-    //     }
-    // }
     const Color = {
         BLACK: 'black',
         WHITE: 'white',
@@ -264,8 +250,15 @@
                 'd': toggleDarkMode,
             },
             onCtrlPress: {
-                'z': undo,
-                'y': redo,
+                // 'z': () => {
+                //     let id = paths[0];
+                //     paths.transfer(id, deleted)
+                //     clearScreen();
+                //     redrawAll();
+                // },
+                'z': () => CommandManager.undo(),
+                // 'y': redo,
+                'y': () => CommandManager.redo(),
                 's': (e) => {
                     e.preventDefault();
                     save();
@@ -406,14 +399,16 @@
 
     function eraseAllPaths() {
         if (paths.size > 0) {
-            history.push({type: Command.DELETE_PATHS, arg: Array.from(paths.keys())})
+            CommandManager.record({type: Command.DELETE_PATHS, args: Array.from(paths.keys())})
             deleted = deleted.merge(paths);
             paths.clear();
+            // console.log(deleted, paths)
 
             clearScreen();
         }
     }
 
+    /*
     function undo() {
 
         let command = history.pop();
@@ -467,6 +462,70 @@
             redrawAll();
         }
     }
+    */
+
+    let CommandManager = {
+        // _enumCount: 0,
+        history: [],
+        undoHistory: [],
+        undoHandlers: {},
+        redoHandlers: {},
+        addCommands: function(commands) {
+            for (let [type, {undo, redo}] of Object.entries(commands)) {
+                // this.setAttribute(type, this._enumCount++);
+                // Command[type] = Object.keys(Command).length;
+                this.undoHandlers[type] = undo;
+                this.redoHandlers[type] = redo;
+            }
+        },
+        record: function({type, args}) {
+            // add an executed command to history
+            // not a standard execute() according to the pattern
+            //  bc of the delayed and multipart nature of these particular commands
+            // if (perform) {
+            //   this.executeHandlers[type](...args);
+            // }
+            this.history.push({type, args});
+
+            // reset redos; no more allowed once new commands performed
+            this.undoHistory = [];
+        },
+        undo: function() {
+            if (this.history.length == 0) return;
+
+            let {type, args} = this.history.pop();
+            this.undoHandlers[type](args);
+
+            this.undoHistory.push({type, args});
+
+            clearScreen();
+            redrawAll();
+        },
+        redo: function() {
+            if (this.undoHistory.length == 0) return;
+
+            let {type, args} = this.undoHistory.pop();
+            this.redoHandlers[type](args);
+
+            this.history.push({type, args});
+
+            clearScreen();
+            redrawAll();
+        },
+    }
+
+    CommandManager.addCommands({
+        [Command.CREATE_PATH]: {
+            undo: (id) => paths.transfer(id, deleted),
+            redo: (id) => deleted.transfer(id, paths),
+        },
+        [Command.ERASE_PATHS]: {
+            undo: (ids) => ids.forEach(id => deleted.transfer(id, paths)),
+            redo: (ids) => ids.forEach(id => paths.transfer(id, deleted)),
+        }
+    });
+
+
 
     /*
     function eraseAsAcceleratingWhitePath() {
@@ -609,17 +668,16 @@
     }
 
     function stopDraw() {
-        // let id = ID.new();
         let id = newID();
         paths.set(id, {path: currPath, color: Color.foreground});
-        history.push({type: Command.CREATE_PATH, arg: id});
+        CommandManager.record({type: Command.CREATE_PATH, args: id})
 
         // unsetMode();
     }
 
     function stopErase() {
         if (currErasures.length > 0) {
-            history.push({type: Command.DELETE_PATHS, arg: currErasures});
+            CommandManager.record({type: Command.DELETE_PATHS, args: currErasures});
             currErasures = [];
         }
     }
@@ -732,4 +790,5 @@
 
     window.p = () => paths;
     window.h = history
+    window.c = CommandManager;
 })();

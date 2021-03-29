@@ -163,6 +163,12 @@
                 yield* other;
             }());
         }
+
+        transfer(key, other) {
+            let val = this.get(key);
+            this.delete(key);
+            other.set(key, val);
+        }
     }
 
     let setStyle = (obj, styles) => Object.assign(obj.style, styles);
@@ -189,7 +195,7 @@
         onCtrlPress: {},
         // {key: {start: fn, end: fn}}
         set onHold(keysCallbacks) {
-            // has to be separated into keydown, keyup events 
+            // has to be separated into keydown, keyup events
             for (let [key, {start, end}] of Object.entries(keysCallbacks)) {
                 this._onHoldStart[key] = start;
                 this._onHoldEnd[key] = end;
