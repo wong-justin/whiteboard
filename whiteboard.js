@@ -39,18 +39,25 @@
     let cursor = document.createElement('div');
     let link = document.createElement('a');
     // some constants, enums
-    const Mode = {Pen:1, Pan:2, Zoom:3, Undo:4, Erase:5, current: null}
-    const Command = {DrawPath: 1, ErasePaths: 2}
-    const ID = {_count: 0, new: function() {return this._count++}}  // ID.new() for unique ids
+    const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
+    const Command = {CREATE_PATH: 1, DELETE_PATHS: 2}
+    // let CommandManager = {
+    //     addType({type, execute, undo}) {
+      //   // this.setAttribute(type, this._enumCount++);
+      //   this.executeHandlers[type] = execute;
+      //   this.undoHandlers[type] = undo
+      // }
+    // }
     const Color = {
-        Black: 'black',
-        White: 'white',
-        Red: 'red',
-        Blue: 'blue',
-        Green: 'green',
+        BLACK: 'black',
+        WHITE: 'white',
+        RED: 'red',
+        BLUE: 'blue',
+        GREEN: 'green',
         foreground: 'white',
         background: 'black',
-        get oppositeOfBackground() {return (Color.background == Color.White ? Color.Black : Color.White)},
+        // opposite of background, aka default foreground
+        get default() {return (Color.background == Color.WHITE ? Color.BLACK : Color.WHITE)},
     }
     let cursorWidth = 6;
     let eraserWidth = 12;
@@ -151,7 +158,7 @@
     function setDefaultPen() {
         // canvas context stroking
         utils.setProperties(ctx, {
-            strokeStyle: Color.oppositeOfBackground,
+            strokeStyle: Color.default,
             lineWidth: 4,
             lineCap: 'round',
         });
@@ -164,7 +171,7 @@
             height: cursorWidth + 'px',
             borderRadius: '50%',
             background: Color.foreground,
-            // background: Color.oppositeOfBackground,
+            // background: Color.default,
             border: 'none',
         });
     }
@@ -180,7 +187,7 @@
             width: eraserWidth + 'px',
             height: eraserWidth + 'px',
             // border: '1px solid ' + foregroundColor,
-            border: '1px solid ' + Color.oppositeOfBackground,
+            border: '1px solid ' + Color.default,
         });
     }
 
@@ -199,7 +206,7 @@
     function toggleDarkMode() {
 
         setForegroundColor(Color.background);
-        setBackgroundColor(Color.oppositeOfBackground);
+        setBackgroundColor(Color.default);
 
         // invert the paths of default color
         paths = paths.map(invertPathColor);
@@ -212,7 +219,7 @@
         return {
             path: path.path,
             color: (path.color == Color.background) ?
-                Color.oppositeOfBackground :
+                Color.default :
                 path.color
         }
     }
@@ -269,7 +276,7 @@
     function onMouseDown(e) {
         switch (e.button) {
             case 0: // left click
-                if (Mode.current == Mode.Undo) {// && insideDiv(e, undoControlArea)) {
+                if (Mode.current == Mode.UNDO) {// && insideDiv(e, undoControlArea)) {
                     lastDirection = null;
                 }
                 else if (Mode.current === null) {
@@ -278,10 +285,10 @@
                 break;
             case 2: // right click
                 if (insideDiv(e, zoomControlArea)) {
-                    setMode(Mode.Zoom);
+                    setMode(Mode.ZOOM);
                 }
                 else {
-                    setMode(Mode.Pan);
+                    setMode(Mode.PAN);
                 }
                 break;
         }
@@ -290,7 +297,7 @@
     function onMouseUp(e) {
         switch (e.button) {
             case 0: // left click
-                if (Mode.current == Mode.Pen) {
+                if (Mode.current == Mode.PEN) {
                     stopDraw();
                 }
                 unsetMode();
@@ -306,20 +313,20 @@
         cursor.style.top = e.clientY - cursorWidth/2 + 'px';
 
         switch (Mode.current) {
-            case Mode.Pen:
+            case Mode.PEN:
                 draw(e);
                 break;
-            case Mode.Pan:
+            case Mode.PAN:
                 pan(e);
                 break;
-            case Mode.Zoom:
+            case Mode.ZOOM:
                 let factor = calcZoomFactor(e);
                 zoom(factor);
                 break;
-            case Mode.Undo:
+            case Mode.UNDO:
                 if ( switchedDirection(e) ) {undo();}
                 break;
-            case Mode.Erase:
+            case Mode.ERASE:
                 erase(e);
                 break;
         }
@@ -337,14 +344,14 @@
     function onKeyToggleOn(e) {
         switch (e.key) {
             case 'Shift':
-                setMode(Mode.Erase);
+                setMode(Mode.ERASE);
         }
     }
 
     function onKeyToggleOff(e) {
         switch (e.key) {
             case 'Shift':
-                if (Mode.current == Mode.Erase) {
+                if (Mode.current == Mode.ERASE) {
                     stopErase();
                 }
                 unsetMode();
@@ -373,16 +380,16 @@
                     eraseAllPaths();
                     break;
                 case 'r':
-                    setForegroundColor(Color.Red);
+                    setForegroundColor(Color.RED);
                     break;
                 case 'g':
-                    setForegroundColor(Color.Green);
+                    setForegroundColor(Color.GREEN);
                     break;
                 case 'b':
-                    setForegroundColor(Color.Blue);
+                    setForegroundColor(Color.BLUE);
                     break;
                 case 'f':
-                    setForegroundColor(Color.oppositeOfBackground);
+                    setForegroundColor(Color.default);
                     break;
                 case 'd':
                     toggleDarkMode();
@@ -432,7 +439,7 @@
 
     function eraseAllPaths() {
         if (paths.size > 0) {
-            history.push({command: Command.ErasePaths, arg: Array.from(paths.keys())})
+            history.push({type: Command.DELETE_PATHS, arg: Array.from(paths.keys())})
             deleted = deleted.merge(paths);
             paths.clear();
 
@@ -443,17 +450,16 @@
     function undo() {
 
         let command = history.pop();
-        console.log(command)
         if (command) {
-            switch (command.command) {
-                case Command.DrawPath:
+            switch (command.type) {
+                case Command.CREATE_PATH:
                     let id = command.arg;
                     let path = paths.get(id);
                     paths.delete(id);
                     deleted.set(id, path);
                     break;
 
-                case Command.ErasePaths:
+                case Command.DELETE_PATHS:
                     let ids = command.arg;
                     ids.forEach(id => {
                         let path = deleted.get(id);
@@ -462,6 +468,7 @@
                     })
                     break;
             }
+            undoHistory.push(command)
 
             clearScreen();
             redrawAll();
@@ -469,15 +476,15 @@
     }
 
     function redo() {
-       let command = redoStack.pop();
+       let command = undoHistory.pop();
        if (command) {
 
-           switch (command.command) {
-               case Command.DrawPath:
+           switch (command.type) {
+               case Command.CREATE_PATH:
 
                    break;
 
-               case Command.ErasePaths:
+               case Command.DELETE_PATHS:
 
                    break;
            }
@@ -526,11 +533,6 @@
     }
 
     function zoom(factor) {
-        // paths = paths.map(pathObj => {
-        //     return {
-        //         path: pathObj.path.map(pt => utils.scale(pt, factor, origin)),
-        //         color: pathObj.color};
-        // });
 
         paths = paths.map(p => ({
             path: p.path.map(pt => utils.scale(pt, factor, origin)),
@@ -619,26 +621,29 @@
 
     // drawing
 
+    let newID = (() => {
+      count = 0;
+      return () => count++;
+    })();
+
     function startDraw(e) {
-        setMode(Mode.Pen);
+        setMode(Mode.PEN);
         currPath = [];  // reset curr path
         draw(e);    // draw a dot, covering case of single click
     }
 
     function stopDraw() {
-        let id = ID.new();
+        // let id = ID.new();
+        let id = newID();
         paths.set(id, {path: currPath, color: Color.foreground});
-        history.push({command: Command.DrawPath, arg: id});
-
-        // paths.push({path:currPath, color:foregroundColor}); // finish curr path
-//        commandStack.push({fn: drawPath, path:currPath, color: foregroundColor});
+        history.push({type: Command.CREATE_PATH, arg: id});
 
         // unsetMode();
     }
 
     function stopErase() {
         if (currErasures.length > 0) {
-            history.push({command: Command.ErasePaths, arg: currErasures});
+            history.push({type: Command.DELETE_PATHS, arg: currErasures});
             currErasures = [];
         }
     }
@@ -721,13 +726,13 @@
 
     function setMode(newMode) {
         switch (newMode) {
-            case Mode.Zoom:
+            case Mode.ZOOM:
                 hideCursor();
                 break;
-            case Mode.Undo:
+            case Mode.UNDO:
                 hideCursor();
                 break;
-            case Mode.Erase:
+            case Mode.ERASE:
                 // eraserCursor();
                 setEraserCursor();
         }
@@ -740,17 +745,6 @@
     }
 
 
-
-    // document.addEventListener('copy', function(e) {
-    //   // e.clipboardData is initially empty, but we can set it to the
-    //   // data that we want copied onto the clipboard.
-    //   e.clipboardData.setData('text/plain', 'Hello, world!');
-    //   e.clipboardData.setData('text/html', '<b>Hello, world!</b>');
-    //
-    //   // This is necessary to prevent the current document selection from
-    //   // being written to the clipboard.
-    //   e.preventDefault();
-    // });
 
 
 
