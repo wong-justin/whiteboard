@@ -18,12 +18,7 @@
  *
  **/
 
-// possibile actions implementation for undo/redo:
-// command(args) // eg drawPath(path, color)
-//  > append to actions history
-// undo - pop last actions history into redoable stack and inverseAction(action, ...args)
-// redo - perform top action in redoable stack action(...args) and append to actions history
-//  > redo stack is cleared once new history begins
+
 
 
 // path:
@@ -42,11 +37,18 @@
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
     const Command = {CREATE_PATH: 1, DELETE_PATHS: 2}
     // let CommandManager = {
+    //     _enumCount: 0,
     //     addType({type, execute, undo}) {
-      //   // this.setAttribute(type, this._enumCount++);
-      //   this.executeHandlers[type] = execute;
-      //   this.undoHandlers[type] = undo
-      // }
+    //       // this.setAttribute(type, this._enumCount++);
+    //       this.executeHandlers[type] = execute;
+    //       this.undoHandlers[type] = undo
+    //     },
+    //     execute({type, args, perform:true}) {
+    //       if (perform) {
+    //         this.executeHandlers[type](...args);
+    //       }
+    //       this.history.push({type, args});
+    //     }
     // }
     const Color = {
         BLACK: 'black',
@@ -209,13 +211,14 @@
         setBackgroundColor(Color.default);
 
         // invert the paths of default color
-        paths = paths.map(invertPathColor);
+        paths = paths.map(invertDefaultColor);
         clearScreen();
         redrawAll();
     }
 
-    function invertPathColor(path) {
+    function invertDefaultColor(path) {
       // change black to white or vice versa; leave other colors alone
+      // called after background color has been changed
         return {
             path: path.path,
             color: (path.color == Color.background) ?
@@ -465,7 +468,7 @@
                         let path = deleted.get(id);
                         deleted.delete(id);
                         paths.set(id, path);
-                    })
+                    });
                     break;
             }
             undoHistory.push(command)
@@ -476,20 +479,29 @@
     }
 
     function redo() {
-       let command = undoHistory.pop();
-       if (command) {
+        let command = undoHistory.pop();
+        if (command) {
+            switch (command.type) {
+                case Command.CREATE_PATH:
+                    let id = command.arg;
+                    let path = deleted.get(id);
+                    deleted.delete(id)
+                    paths.set(id, path)
+                    break;
+                case Command.DELETE_PATHS:
+                    let ids = command.arg;
+                    ids.forEach(id => {
+                        let path = paths.get(id);
+                        paths.delete(id);
+                        deleted.set(id, path);
+                    });
+                    break;
+            }
+            history.push(command)
 
-           switch (command.type) {
-               case Command.CREATE_PATH:
-
-                   break;
-
-               case Command.DELETE_PATHS:
-
-                   break;
-           }
-
-      }
+            clearScreen();
+            redrawAll();
+        }
     }
 
     /*
