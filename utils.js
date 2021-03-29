@@ -175,12 +175,17 @@
 
     let setProperties = (obj, props) => Object.assign(obj, props);
 
-    // listeners = {'event type': function, ...}
+    // listeners = {'event type': fn, ...}
     let addListeners = (obj, listeners) => Object.keys(listeners).forEach(type => {
         let callback = listeners[type];
         obj.addEventListener(type, callback);
     });
 
+    // KeypressListeners.add({
+    //   onPress: {'key': fn, ...},
+    //   onHold: {'key': {start: fn, end: fn}, ...},
+    //   onCtrlPress: {'key': fn, ...},
+    // })
     let KeypressListeners = {
         add({onPress, onCtrlPress, onHold}) {
             // main setup function to be called
@@ -227,6 +232,7 @@
        else return () => {};
     }
 
+    // CommandManager.add({command_name: {undo: fn, redo: fn}, ...})
     let CommandManager = {
         _enumCount: 0,
         history: [],
@@ -234,17 +240,19 @@
         undoHandlers: {},
         redoHandlers: {},
         add: function(commands) {
-            // setup
+            // setup, creating enums for command types and registering undo/redo callbacks
             for (let [type, {undo, redo}] of Object.entries(commands)) {
                 this[type] = this._enumCount++;
                 this.undoHandlers[this[type]] = undo;
                 this.redoHandlers[this[type]] = redo;
             }
+            return this;
         },
         record: function({type, args}) {
             // add an executed command to history
             // not a standard execute() according to the pattern
             //  bc of the delayed and multipart nature of these particular commands
+
             // if (perform) {
             //   this.executeHandlers[type](...args);
             // }

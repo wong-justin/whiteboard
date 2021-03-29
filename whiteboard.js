@@ -35,8 +35,7 @@
     let link = document.createElement('a');
     // some constants, enums
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
-    const Commands = utils.CommandManager;
-    Commands.add({
+    const Commands = utils.CommandManager.add({
         CREATE_PATH: {
             undo: (id) => {
                 paths.transfer(id, deleted);
@@ -102,7 +101,9 @@
           F
            - default pen color (white or black)
           Ctrl + Z
-           - erase last path
+           - undo (for drawing and erasing)
+          Ctrl + Y
+           - redo
           Ctrl + S
            - save as image
           D
@@ -371,14 +372,12 @@
 
     /**** MAIN WHITEBOARD COMMANDS, BUSINESS LOGIC ****/
 
-    // changing data
+    // creating, deleting
 
     function draw(e) {
-
+        // update newest point of current path
         let mousePos = getRelativeMousePos(e);
-
         drawLine(lastCoords, mousePos);
-
         currPath.push(mousePos);
     }
 
@@ -404,9 +403,7 @@
             }
         });
 
-        if (erasedSomething) {
-            repaint();
-        }
+        if (erasedSomething) repaint();
     }
 
     function eraseAllPaths() {
@@ -414,7 +411,6 @@
             Commands.record({type: Commands.DELETE_PATHS, args: Array.from(paths.keys())})
             deleted = deleted.merge(paths);
             paths.clear();
-            // console.log(deleted, paths)
 
             clearScreen();
         }
@@ -445,7 +441,7 @@
     }
     */
 
-    // changing views
+    // modifying for view
 
     function pan(e) {
         let mousePos = getRelativeMousePos(e);
@@ -468,13 +464,15 @@
         repaint();
     }
 
+    // other views
+
     function clearScreen() {
         // just whites canvas but not data
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     function redrawAll() {
-        paths.forEach((path, _) => drawPath(path.path, path.color));
+        paths.forEach(drawPath);
     }
 
     function repaint() {
@@ -485,6 +483,8 @@
     // I/O
 
     function save() {
+        if (paths.size == 0) return;
+
         let ptArrs = Array.from(paths.values()).map(p => p.path);
         let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
         let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
@@ -553,6 +553,7 @@
     // drawing
 
     let newID = (() => {
+      // generates unique id every call
       count = 0;
       return () => count++;
     })();
@@ -560,15 +561,14 @@
     function startDraw(e) {
         setMode(Mode.PEN);
         currPath = [];  // reset curr path
-        draw(e);    // draw a dot, covering case of single click
+        draw(e);        // draw a dot, covering case of single click
     }
 
     function stopDraw() {
+        // penup; finish the path
         let id = newID();
         paths.set(id, {path: currPath, color: Color.foreground});
         Commands.record({type: Commands.CREATE_PATH, args: id})
-
-        // unsetMode();
     }
 
     function stopErase() {
@@ -578,12 +578,13 @@
         }
     }
 
-    function drawPath(path, color) {
-        ctx.strokeStyle = color;    // temporarily set ctx color for this path
+    function drawPath(p) {
+        // connect series of points on canvas
+        ctx.strokeStyle = p.color;    // temporarily set ctx color for this path
 
         let i = 0;
-        let numPts = path.length;
-        lastPt = path[i];
+        let numPts = p.path.length;
+        lastPt = p.path[i];
         i += 1
         if (numPts == 1) {  // case of just a dot
             drawLine(lastPt, lastPt);
@@ -592,7 +593,7 @@
 
         while (i < numPts) {
 
-            currPt = path[i];
+            currPt = p.path[i];
             drawLine(lastPt, currPt);
 
             lastPt = currPt;
@@ -603,6 +604,7 @@
     }
 
     function drawLine(pt1, pt2) {
+        // straight line on canvas
         ctx.beginPath();
         ctx.moveTo(...pt1);
         ctx.lineTo(...pt2);
