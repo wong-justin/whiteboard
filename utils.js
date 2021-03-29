@@ -183,7 +183,7 @@
 
     let KeypressListeners = {
         add({onPress, onCtrlPress, onHold}) {
-            // main function to be called by user
+            // main setup function to be called
             this.onPress = onPress;
             this.onCtrlPress = onCtrlPress;
             this.onHold = onHold;
@@ -228,14 +228,17 @@
     }
 
     let CommandManager = {
+        _enumCount: 0,
         history: [],
         undoHistory: [],
         undoHandlers: {},
         redoHandlers: {},
-        addCommands: function(commands) {
+        add: function(commands) {
+            // setup
             for (let [type, {undo, redo}] of Object.entries(commands)) {
-                this.undoHandlers[type] = undo;
-                this.redoHandlers[type] = redo;
+                this[type] = this._enumCount++;
+                this.undoHandlers[this[type]] = undo;
+                this.redoHandlers[this[type]] = redo;
             }
         },
         record: function({type, args}) {

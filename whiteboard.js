@@ -35,10 +35,29 @@
     let link = document.createElement('a');
     // some constants, enums
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
-    const Commands = {...utils.CommandManager, CREATE_PATH: 1, DELETE_PATHS: 2}
-    // const Commands = utils.CommandManager;
-    // Commands.CREATE_PATH = 1;
-    // Commands.DELETE_PATHS = 2;
+    const Commands = utils.CommandManager;
+    Commands.add({
+        CREATE_PATH: {
+            undo: (id) => {
+                paths.transfer(id, deleted);
+                repaint();
+            },
+            redo: (id) => {
+                deleted.transfer(id, paths);
+                repaint();
+            },
+        },
+        DELETE_PATHS: {
+            undo: (ids) => {
+                ids.forEach(id => deleted.transfer(id, paths));
+                repaint();
+            },
+            redo: (ids) => {
+                ids.forEach(id => paths.transfer(id, deleted));
+                repaint();
+            },
+        }
+    });
     const Color = {
         BLACK: 'black',
         WHITE: 'white',
@@ -65,8 +84,6 @@
 
     let paths = new utils.MyMap();
     let deleted = new utils.MyMap();
-    let history = [];
-    let undoHistory = [];
 
     function showHelpMessage() {
         let message = `
@@ -403,29 +420,6 @@
         }
     }
 
-    Commands.addCommands({
-        [Commands.CREATE_PATH]: {
-            undo: (id) => {
-                paths.transfer(id, deleted);
-                repaint();
-            },
-            redo: (id) => {
-                deleted.transfer(id, paths);
-                repaint();
-            },
-        },
-        [Commands.DELETE_PATHS]: {
-            undo: (ids) => {
-                ids.forEach(id => deleted.transfer(id, paths));
-                repaint();
-            },
-            redo: (ids) => {
-                ids.forEach(id => paths.transfer(id, deleted));
-                repaint();
-            },
-        }
-    });
-
     /*
     function eraseAsAcceleratingWhitePath() {
         // increase line width for bigger strokes
@@ -687,10 +681,6 @@
 
     /**** export globals ****/
 
-    //    init(); //window.addEventListener('load', init());  // load automatically
+    //    init(); //window.addEventListener('load', init);  // load automatically, no outside customization
     window.whiteboard = {init,}; // let caller decide when to load by using whiteboard.init()
-
-    window.p = () => paths;
-    window.h = history
-    window.c = Commands;
 })();
