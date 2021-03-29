@@ -9,23 +9,23 @@ https://wong-justin.github.io/whiteboard/
 
 | Controls                                             | Command                            |
 |------------------------------------------------------|------------------------------------|
-| Shift + mouse move                                   | erase                              |
-| Space                                                | erase all                          |
+| `Shift` + mouse move                                 | erase                              |
+| `Space`                                              | erase all                          |
 | Right click + mouse move                             | pan                                |
 | Right click upper right margin + mouse move up/down  | zoom in/out                        |
-| R,G,B                                                | pen colors                         |
-| F                                                    | default pen color (white or black) |
-| Ctrl + Z                                             | undo                               |
-| Ctrl + Y                                             | redo                               |
-| Ctrl + S                                             | save as image                      |
-| D                                                    | toggle dark mode                   |
+| `R`,`G`,`B`                                          | pen colors                         |
+| `F`                                                  | default pen color (white or black) |
+| `Ctrl` + `Z`                                         | undo                               |
+| `Ctrl` + `Y`                                         | redo                               |
+| `Ctrl` + `S`                                         | save as image                      |
+| `D`                                                  | toggle dark mode                   |
 
 
 gesture ideas:
 - [x] right click and drag to pan
 - [x] shift click to erase
 
-- [~] wiggle back and forth, like to increase eraser size or to undo again every wiggle; deprecated
+- [-] deprecated: wiggle back and forth, like to increase eraser size or to undo again every wiggle. just not feeling it for now.
 
 - [ ] shift drag to select paths
     - [ ] delete with some gesture? drag to corner maybe
@@ -35,6 +35,7 @@ gesture ideas:
 
 other features:
 - [x] undo
+    - [ ] only track last n commands, ie delete oldest unused paths from memory
 - [x] redo
 - [x] clear all (spacebar)
 - [x] pan infinitely
@@ -48,8 +49,11 @@ other features:
 
 - [x] export as image (ctrl-s)
 - [ ] import/export state
+    - [ ] import json state by dragging file into page, like uploading an image to a website
 - [ ] import any image (ctrl i?)
 - [ ] simple text box (hit Enter to start typing at cursor?)
+
+- [ ] restore default settings, if customizable settings allowed
 
 for better performance...
 - [ ] requestAnimationFrame() for quicker polling than onmousemove? Onmousemove slows considerably with heavy computer usage like screensharing + videoconferencing
