@@ -232,6 +232,9 @@
     function addEventListeners() {
         // called once on page load
 
+        // window events
+        utils.addListeners(window, {'resize'  : onResize});
+        utils.addListeners(parent, {'mouseout': onMouseOut});
         // mouse events
         utils.addListeners(canvas, {
             'mousedown': onMouseDown,
@@ -240,16 +243,35 @@
             'contextmenu': (e) => e.preventDefault(),
         });
         // key events
-        utils.addListeners(window, {
-            'keydown': (e) => {
-                onKeyPress(e);
-                onKeyToggleOn(e)
+        utils.KeypressListeners.add({
+            onHold: {
+                'Shift': {
+                    start: () => setMode(Mode.ERASE),
+                    end: () => {
+                        if (Mode.current == Mode.ERASE) {
+                            stopErase();
+                        }
+                        unsetMode();
+                    }
+                }
             },
-            'keyup': onKeyToggleOff,
+            onPress: {
+                ' ': eraseAllPaths,
+                'f': () => setForegroundColor(Color.default),
+                'r': () => setForegroundColor(Color.RED),
+                'g': () => setForegroundColor(Color.GREEN),
+                'b': () => setForegroundColor(Color.BLUE),
+                'd': toggleDarkMode,
+            },
+            onCtrlPress: {
+                'z': undo,
+                'y': redo,
+                's': (e) => {
+                    e.preventDefault();
+                    save();
+                }
+            }
         });
-        // window events
-        utils.addListeners(window, {'resize'  : onResize});
-        utils.addListeners(parent, {'mouseout': onMouseOut});
     }
 
     // window
@@ -340,64 +362,6 @@
 
         // ?
 //        requestAnimationFrame(() => onMouseMove(e));
-    }
-
-    // keypresses
-
-    function onKeyToggleOn(e) {
-        switch (e.key) {
-            case 'Shift':
-                setMode(Mode.ERASE);
-        }
-    }
-
-    function onKeyToggleOff(e) {
-        switch (e.key) {
-            case 'Shift':
-                if (Mode.current == Mode.ERASE) {
-                    stopErase();
-                }
-                unsetMode();
-        }
-    }
-
-    function onKeyPress(e) {
-
-        if (e.ctrlKey) {
-            switch (e.key) {
-                case 'z':
-                    undo();
-                    break;
-                case 'y':
-                    redo();
-                    break;
-                case 's':
-                    e.preventDefault();
-                    save();
-                    break;
-            }
-        }
-        else{
-            switch (e.key) {
-                case ' ':   // clear canvas and data
-                    eraseAllPaths();
-                    break;
-                case 'r':
-                    setForegroundColor(Color.RED);
-                    break;
-                case 'g':
-                    setForegroundColor(Color.GREEN);
-                    break;
-                case 'b':
-                    setForegroundColor(Color.BLUE);
-                    break;
-                case 'f':
-                    setForegroundColor(Color.default);
-                    break;
-                case 'd':
-                    toggleDarkMode();
-            }
-        }
     }
 
     /**** MAIN WHITEBOARD COMMANDS, BUSINESS LOGIC ****/

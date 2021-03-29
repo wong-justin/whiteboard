@@ -175,6 +175,52 @@
         obj.addEventListener(type, callback);
     });
 
+    let KeypressListeners = {
+        add({onPress, onCtrlPress, onHold}) {
+            // main function to be called by user
+            this.onPress = onPress;
+            this.onCtrlPress = onCtrlPress;
+            this.onHold = onHold;
+            this._finalize();
+        },
+        // {key: fn}
+        onPress: {},
+        // {key: fn}
+        onCtrlPress: {},
+        // {key: {start: fn, end: fn}}
+        set onHold(keysCallbacks) {
+            // has to be separated into keydown, keyup events 
+            for (let [key, {start, end}] of Object.entries(keysCallbacks)) {
+                this._onHoldStart[key] = start;
+                this._onHoldEnd[key] = end;
+            }
+        },
+        _onHoldStart: {},
+        _onHoldEnd: {},
+        _finalize() {
+            // add all event listeners to window
+            window.addEventListener('keydown', (e) => {
+                if (e.ctrlKey) {
+                    safelyCall(e.key, this.onCtrlPress)(e);
+                }
+                else {
+                    safelyCall(e.key, this.onPress)(e);
+                    safelyCall(e.key, this._onHoldStart)(e);
+                }
+            });
+            window.addEventListener('keyup', (e) => {
+                safelyCall(e.key, this._onHoldEnd)(e);
+            });
+        },
+    }
+
+    function safelyCall(key, dict) {
+       if (key in dict) {
+         return dict[key];
+       }
+       else return () => {};
+    }
+
     window.utils = {
         scale,
         relativeTo,
@@ -192,6 +238,7 @@
         setStyle,
         setProperties,
         addListeners,
+        KeypressListeners,
     }
 
 })();
