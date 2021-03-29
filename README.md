@@ -7,34 +7,48 @@ https://wong-justin.github.io/whiteboard/
 
 ## Features
 
+| Controls                                             | Command                            |
+|------------------------------------------------------|------------------------------------|
+| Shift + mouse move                                   | erase                              |
+| Space                                                | erase all                          |
+| Right click + mouse move                             | pan                                |
+| Right click upper right margin + mouse move up/down  | zoom in/out                        |
+| R,G,B                                                | pen colors                         |
+| F                                                    | default pen color (white or black) |
+| Ctrl + Z                                             | undo                               |
+| Ctrl + Y                                             | redo                               |
+| Ctrl + S                                             | save as image                      |
+| D                                                    | toggle dark mode                   |
+
+
 gesture ideas:
 - [x] right click and drag to pan
 - [x] shift click to erase
-    - [-] faster wiggles back and forth to erase -> larger eraser radius
-    - [x] erase by deleting paths,
-    not just creating white lines
+
+- [~] wiggle back and forth, like to increase eraser size or to undo again every wiggle; deprecated
+
+- [ ] shift drag to select paths
+    - [ ] delete with some gesture? drag to corner maybe
+    - [ ] drag selection
+    - [ ] pan and zoom surroundings leave selection unaffected?
     - [ ] erase by selecting polygon around paths to delete?
 
 other features:
-- [~] undo (currently just pops last drawings and won't undo erasures or any other commands) (ctrl-z)
-    - [x] wiggling for many redos, ie undo each time detect change in direction
-- [ ] redo
-    - [ ] track commands for controls like redo, smart panning, ...
-    standard draw command: path, color, line width
-    erase command: path, zipped with line widths at each point
-    change color command
+- [x] undo
+- [x] redo
 - [x] clear all (spacebar)
+- [x] pan infinitely
 - [x] zoom in/out
-    - [x] right click + drag slider at top right?
+    - [x] right click + drag slider at top right
 
 - [x] change colors (r,g,b keys and f for black)
+    - [ ] custom color codes?
 
-- [ ] shift drag to select points
-    - [ ] delete with some gesture?
-    - [ ] drag selected
+- [ ] custom keybindings? like for stylus not having shift or right click
 
+- [x] export as image (ctrl-s)
 - [ ] import/export state
-- [ ] import image (ctrl i?)
+- [ ] import any image (ctrl i?)
 - [ ] simple text box (hit Enter to start typing at cursor?)
 
 for better performance...
@@ -47,8 +61,3 @@ down the road...
 - [ ] networking to communicate between two people??i guess just hosted on a little server using sockets or something
 - [ ] local bluetooth app?????
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
-
-- [x] export as image (ctrl-s)
-
-refactoring:
-- [ ] just use rects (L/R/T/B) instead of custom box objs (ymin/max/xmin/max)

@@ -71,7 +71,7 @@
     }
 
     function rectIntersectsLine(rect, q0, q1) {
-        if ( rectesOverlap(rect, boundingRect(q0, q1)) ) {
+        if ( rectsOverlap(rect, boundingRect(q0, q1)) ) {
             // check for real intersection
 
             return true;
@@ -83,7 +83,7 @@
         let pRect = boundingRect(p0, p1);
         let qRect = boundingRect(q0, q1);
 
-        if ( rectesOverlap(pRect, qRect) ) {
+        if ( rectsOverlap(pRect, qRect) ) {
             // check for real intersection
             return true;
 
@@ -116,7 +116,7 @@
         return {left, right, bottom, top};
     }
 
-    function rectesOverlap(A, B) {
+    function rectsOverlap(A, B) {
         return (A.left   < B.left   &&
                 A.right  > B.left   &&
                 A.bottom < B.bottom &&
@@ -181,12 +181,14 @@
         obj.addEventListener(type, callback);
     });
 
-    // KeypressListeners.add({
-    //   onPress: {'key': fn, ...},
-    //   onHold: {'key': {start: fn, end: fn}, ...},
-    //   onCtrlPress: {'key': fn, ...},
-    // })
+    /**** generalized managers ****/
+
     let KeypressListeners = {
+        // KeypressListeners.add({
+        //   onPress: {'key': fn, ...},
+        //   onHold: {'key': {start: fn, end: fn}, ...},
+        //   onCtrlPress: {'key': fn, ...},
+        // })
         add({onPress, onCtrlPress, onHold}) {
             // main setup function to be called
             this.onPress = onPress;
@@ -232,8 +234,8 @@
        else return () => {};
     }
 
-    // CommandManager.add({command_name: {undo: fn, redo: fn}, ...})
     let CommandManager = {
+        // CommandManager.add({command_name: {undo: fn, redo: fn}, ...})
         _enumCount: 0,
         history: [],
         undoHistory: [],
@@ -281,13 +283,13 @@
 
     window.utils = {
         scale,
-        relativeTo,
-        unrelativeTo,
+        // relativeTo,
+        // unrelativeTo,
         translatePoint,
         rectIntersectsPath,
-        rectIntersectsLine,
+        // rectIntersectsLine,
         boundingRect,
-        rectesOverlap,
+        // rectsOverlap,
         pointInRect,
         expandRect,
         min,
