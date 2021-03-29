@@ -35,7 +35,10 @@
     let link = document.createElement('a');
     // some constants, enums
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
-    const Command = {CREATE_PATH: 1, DELETE_PATHS: 2}
+    const Commands = {...utils.CommandManager, CREATE_PATH: 1, DELETE_PATHS: 2}
+    // const Commands = utils.CommandManager;
+    // Commands.CREATE_PATH = 1;
+    // Commands.DELETE_PATHS = 2;
     const Color = {
         BLACK: 'black',
         WHITE: 'white',
@@ -193,13 +196,12 @@
 
     function toggleDarkMode() {
 
-        setForegroundColor(Color.background);
+        // setForegroundColor(Color.background);
         setBackgroundColor(Color.default);
 
         // invert the paths of default color
         paths = paths.map(invertDefaultColor);
-        clearScreen();
-        redrawAll();
+        repaint();
     }
 
     function invertDefaultColor(path) {
@@ -250,15 +252,8 @@
                 'd': toggleDarkMode,
             },
             onCtrlPress: {
-                // 'z': () => {
-                //     let id = paths[0];
-                //     paths.transfer(id, deleted)
-                //     clearScreen();
-                //     redrawAll();
-                // },
-                'z': () => CommandManager.undo(),
-                // 'y': redo,
-                'y': () => CommandManager.redo(),
+                'z': () => Commands.undo(),
+                'y': () => Commands.redo(),
                 's': (e) => {
                     e.preventDefault();
                     save();
@@ -274,8 +269,8 @@
         canvas.height = canvas.clientHeight;
         origin = [canvas.width / 2, canvas.height / 2];
         // because board state has been reset:
-        setDefaultPen();  // restore defult stroke
-        redrawAll();
+        setDefaultPen();  // restore default stroke
+        redrawAll();      // canvas was cleared
     }
 
     function onMouseOut(e) {
@@ -379,27 +374,27 @@
         let erasedSomething = false;
 
         let mousePos = getRelativeMousePos(e);
-        let mouseMoveBox = utils.boundingBox(mousePos, lastCoords);
-        utils.expandRect(mouseMoveBox, eraserWidth / 2);
+        let mouseMoveRect = utils.boundingRect(mousePos, lastCoords);
+        utils.expandRect(mouseMoveRect, eraserWidth / 2);
 
         paths.forEach((path, id) => {
-            if ( utils.rectIntersectsPath(mouseMoveBox, path.path) ) {
-                deleted.set(id, path);
-                paths.delete(id);
+            if ( utils.rectIntersectsPath(mouseMoveRect, path.path) ) {
+                // deleted.set(id, path);
+                // paths.delete(id);
+                paths.transfer(id, deleted)
                 currErasures.push(id);
                 erasedSomething = true;
             }
         });
 
         if (erasedSomething) {
-            clearScreen();
-            redrawAll();
+            repaint();
         }
     }
 
     function eraseAllPaths() {
         if (paths.size > 0) {
-            CommandManager.record({type: Command.DELETE_PATHS, args: Array.from(paths.keys())})
+            Commands.record({type: Commands.DELETE_PATHS, args: Array.from(paths.keys())})
             deleted = deleted.merge(paths);
             paths.clear();
             // console.log(deleted, paths)
@@ -408,124 +403,28 @@
         }
     }
 
-    /*
-    function undo() {
-
-        let command = history.pop();
-        if (command) {
-            switch (command.type) {
-                case Command.CREATE_PATH:
-                    let id = command.arg;
-                    let path = paths.get(id);
-                    paths.delete(id);
-                    deleted.set(id, path);
-                    break;
-
-                case Command.DELETE_PATHS:
-                    let ids = command.arg;
-                    ids.forEach(id => {
-                        let path = deleted.get(id);
-                        deleted.delete(id);
-                        paths.set(id, path);
-                    });
-                    break;
-            }
-            undoHistory.push(command)
-
-            clearScreen();
-            redrawAll();
-        }
-    }
-
-    function redo() {
-        let command = undoHistory.pop();
-        if (command) {
-            switch (command.type) {
-                case Command.CREATE_PATH:
-                    let id = command.arg;
-                    let path = deleted.get(id);
-                    deleted.delete(id)
-                    paths.set(id, path)
-                    break;
-                case Command.DELETE_PATHS:
-                    let ids = command.arg;
-                    ids.forEach(id => {
-                        let path = paths.get(id);
-                        paths.delete(id);
-                        deleted.set(id, path);
-                    });
-                    break;
-            }
-            history.push(command)
-
-            clearScreen();
-            redrawAll();
-        }
-    }
-    */
-
-    let CommandManager = {
-        // _enumCount: 0,
-        history: [],
-        undoHistory: [],
-        undoHandlers: {},
-        redoHandlers: {},
-        addCommands: function(commands) {
-            for (let [type, {undo, redo}] of Object.entries(commands)) {
-                // this.setAttribute(type, this._enumCount++);
-                // Command[type] = Object.keys(Command).length;
-                this.undoHandlers[type] = undo;
-                this.redoHandlers[type] = redo;
-            }
+    Commands.addCommands({
+        [Commands.CREATE_PATH]: {
+            undo: (id) => {
+                paths.transfer(id, deleted);
+                repaint();
+            },
+            redo: (id) => {
+                deleted.transfer(id, paths);
+                repaint();
+            },
         },
-        record: function({type, args}) {
-            // add an executed command to history
-            // not a standard execute() according to the pattern
-            //  bc of the delayed and multipart nature of these particular commands
-            // if (perform) {
-            //   this.executeHandlers[type](...args);
-            // }
-            this.history.push({type, args});
-
-            // reset redos; no more allowed once new commands performed
-            this.undoHistory = [];
-        },
-        undo: function() {
-            if (this.history.length == 0) return;
-
-            let {type, args} = this.history.pop();
-            this.undoHandlers[type](args);
-
-            this.undoHistory.push({type, args});
-
-            clearScreen();
-            redrawAll();
-        },
-        redo: function() {
-            if (this.undoHistory.length == 0) return;
-
-            let {type, args} = this.undoHistory.pop();
-            this.redoHandlers[type](args);
-
-            this.history.push({type, args});
-
-            clearScreen();
-            redrawAll();
-        },
-    }
-
-    CommandManager.addCommands({
-        [Command.CREATE_PATH]: {
-            undo: (id) => paths.transfer(id, deleted),
-            redo: (id) => deleted.transfer(id, paths),
-        },
-        [Command.ERASE_PATHS]: {
-            undo: (ids) => ids.forEach(id => deleted.transfer(id, paths)),
-            redo: (ids) => ids.forEach(id => paths.transfer(id, deleted)),
+        [Commands.DELETE_PATHS]: {
+            undo: (ids) => {
+                ids.forEach(id => deleted.transfer(id, paths));
+                repaint();
+            },
+            redo: (ids) => {
+                ids.forEach(id => paths.transfer(id, deleted));
+                repaint();
+            },
         }
     });
-
-
 
     /*
     function eraseAsAcceleratingWhitePath() {
@@ -563,8 +462,7 @@
             path: p.path.map(pt => utils.translatePoint(pt, dx, dy)),
             color: p.color,
         }));
-        clearScreen();
-        redrawAll();
+        repaint();
     }
 
     function zoom(factor) {
@@ -573,8 +471,7 @@
             path: p.path.map(pt => utils.scale(pt, factor, origin)),
             color: p.color,
         }));
-        clearScreen();
-        redrawAll();
+        repaint();
     }
 
     function clearScreen() {
@@ -584,6 +481,11 @@
 
     function redrawAll() {
         paths.forEach((path, _) => drawPath(path.path, path.color));
+    }
+
+    function repaint() {
+        clearScreen();
+        redrawAll();
     }
 
     // I/O
@@ -670,14 +572,14 @@
     function stopDraw() {
         let id = newID();
         paths.set(id, {path: currPath, color: Color.foreground});
-        CommandManager.record({type: Command.CREATE_PATH, args: id})
+        Commands.record({type: Commands.CREATE_PATH, args: id})
 
         // unsetMode();
     }
 
     function stopErase() {
         if (currErasures.length > 0) {
-            CommandManager.record({type: Command.DELETE_PATHS, args: currErasures});
+            Commands.record({type: Commands.DELETE_PATHS, args: currErasures});
             currErasures = [];
         }
     }
@@ -790,5 +692,5 @@
 
     window.p = () => paths;
     window.h = history
-    window.c = CommandManager;
+    window.c = Commands;
 })();

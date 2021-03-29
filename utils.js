@@ -71,7 +71,7 @@
     }
 
     function rectIntersectsLine(rect, q0, q1) {
-        if ( rectesOverlap(rect, boundingBox(q0, q1)) ) {
+        if ( rectesOverlap(rect, boundingRect(q0, q1)) ) {
             // check for real intersection
 
             return true;
@@ -80,10 +80,10 @@
 
     /*
     function linesIntersect(p0, p1, q0, q1) {
-        let pBox = boundingBox(p0, p1);
-        let qBox = boundingBox(q0, q1);
+        let pRect = boundingRect(p0, p1);
+        let qRect = boundingRect(q0, q1);
 
-        if ( rectesOverlap(pBox, qBox) ) {
+        if ( rectesOverlap(pRect, qRect) ) {
             // check for real intersection
             return true;
 
@@ -91,7 +91,7 @@
     }
     */
 
-    function boundingBox(ptA, ptB) {
+    function boundingRect(ptA, ptB) {
         let left,
             right,
             bottom,
@@ -227,6 +227,47 @@
        else return () => {};
     }
 
+    let CommandManager = {
+        history: [],
+        undoHistory: [],
+        undoHandlers: {},
+        redoHandlers: {},
+        addCommands: function(commands) {
+            for (let [type, {undo, redo}] of Object.entries(commands)) {
+                this.undoHandlers[type] = undo;
+                this.redoHandlers[type] = redo;
+            }
+        },
+        record: function({type, args}) {
+            // add an executed command to history
+            // not a standard execute() according to the pattern
+            //  bc of the delayed and multipart nature of these particular commands
+            // if (perform) {
+            //   this.executeHandlers[type](...args);
+            // }
+            this.history.push({type, args});
+
+            // reset redos in case there were any possible; no more allowed once new commands performed
+            this.undoHistory = [];
+        },
+        undo: function() {
+            if (this.history.length == 0) return;
+
+            let {type, args} = this.history.pop();
+            this.undoHandlers[type](args);
+
+            this.undoHistory.push({type, args});
+        },
+        redo: function() {
+            if (this.undoHistory.length == 0) return;
+
+            let {type, args} = this.undoHistory.pop();
+            this.redoHandlers[type](args);
+
+            this.history.push({type, args});
+        },
+    }
+
     window.utils = {
         scale,
         relativeTo,
@@ -234,7 +275,7 @@
         translatePoint,
         rectIntersectsPath,
         rectIntersectsLine,
-        boundingBox,
+        boundingRect,
         rectesOverlap,
         pointInRect,
         expandRect,
@@ -245,6 +286,7 @@
         setProperties,
         addListeners,
         KeypressListeners,
+        CommandManager,
     }
 
 })();
