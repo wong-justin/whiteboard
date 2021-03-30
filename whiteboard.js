@@ -32,7 +32,6 @@
         // lastDist: 0,
         // lastDirection: null,
     }
-
     const html = {
         parent: document.body,  // maybe have caller initialize this?
         canvas: document.createElement('canvas'),
@@ -75,7 +74,10 @@
                 ids.forEach(id => data.paths.transfer(id, data.deletedPaths));
                 repaint();
             },
-        }
+        },
+				// REPLACE_ALL_PATHS: {
+				// 		redo: ()
+				// }
     });
 		const Export = new utils.ExportManager({
         PNG: {
@@ -87,14 +89,14 @@
             generateDataURL: generateJSON,
         }
     });
-    // const PathManager = {
+    // const Paths = new PathManager({
     //       existing: new MyMap(),
     //       deleted: new MyMap(),
     //       currPoints: [],
     //       currDeletions: [],
 		// 			createPath: function() {},
 		// 			deletePaths: function() {},
-    // }
+    // })
     const CURSOR_WIDTH = 6,
           ERASER_WIDTH = 12;
     const HELP_MESSAGE = `
@@ -264,7 +266,7 @@
                         }
                         unsetMode();
                     }
-                }
+                },
             },
             onPress: {
                 ' ': eraseAllPaths,
@@ -279,11 +281,18 @@
                 'y': () => Commands.redo(),
                 's': (e) => {
                     e.preventDefault();
-                    // exportPNG();
-                    // exportJSON();
-                    Export.JSON();
-                }
-            }
+
+                    // Export.JSON();
+										Export.PNG();
+                },
+								'o': (e) => {
+										e.preventDefault();
+
+										openFileChooser()
+										.then(file => readJSONFile(file))
+										.then(state => importState(state));
+								},
+            },
         });
     }
 
@@ -491,7 +500,7 @@
 
     function generatePNG() {
     // function generatePNG(state)
-        if (data.paths.size == 0) return;
+        if (data.paths.size == 0) return html.canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
 
         let ptArrs = Array.from(data.paths.values()).map(p => p.points);
         let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
@@ -625,13 +634,15 @@
     });
 
     document.addEventListener('drop', (e) => {
+
+
+
         e.preventDefault();
         console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
         // chromium: copyMove, none
         // firefox:  uninitialized, move
 
-
-        // investigating fman solution
+        // investigating fman solution to getting file
         /*
         console.log(e.dataTransfer.getData('text'));
         // return;
@@ -651,19 +662,10 @@
 
         // standard; works with fman on firefox but not chrome
         let file = e.dataTransfer.items[0].getAsFile();
-        console.log(file);
-
-        readJSONFile(file).then(result => {
-            console.log(result);
-            importState(result);
-        });
 
 
-
-        // if (e.dataTransfer.items) {
-        //
-        //
-        // }
+				readJSONFile(file)
+				.then(state => importState(state));
     });
 
     function readJSONFile(file) {
@@ -676,6 +678,20 @@
             reader.readAsText(file);
         });
     }
+
+		let openFileChooser = (() => {
+				// async function, resulting in File from user's system
+				let input = document.createElement('input');
+				input.type = 'file';
+
+				return () => new Promise(resolve => {
+						input.oninput = (e) => {
+								resolve(input.files[0]);
+								input.value = '';		// in case user wants to choose same file again
+						}
+						input.click();
+				});
+		})();
 
     /**** HELPERS ****/
 
