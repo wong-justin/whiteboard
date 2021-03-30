@@ -8,58 +8,59 @@
 // };
 // whiteboard.init(settings);
 
-/**
- * some important structures:
- *
- * path - array of [x,y] arrs
- * pathObj aka displayedPath - {path: [...], color: '...'}
- *
- *
- *
- **/
 
 
+// paths:
+// {id => path}
+//
 // path:
-// {id, points, color}
+// {points: point[], color: enum/str}
+//
+// point: [x,y]
 
 (() => {
-    // html elements
-    let parent = document.body;
-    let canvas = document.createElement('canvas');
-    let ctx = canvas.getContext('2d');
-    let zoomControlArea = document.createElement('div');
-    let undoControlArea = document.createElement('div');
-    let cursor = document.createElement('div');
 
-    // const html = {
-    //     parent: ,
-    //     canvas: ,
-    //     ctx: ,
-    //     zoomControlArea: ,
-    //     undoControlArea: ,
-    //     cursor: ,
-    // }
+    const html = {
+        parent: document.body,  // maybe have caller initialize this?
+        canvas: document.createElement('canvas'),
+        zoomControlArea: document.createElement('div'),
+        // undoControlArea: document.createElement('div'),
+        cursor: document.createElement('div'),
+    }
+    html.ctx = html.canvas.getContext('2d');
+
+    const data = {
+        paths: new utils.MyMap(),
+        deletedPaths : new utils.MyMap(),
+        currPath: [],
+        currErasures: [],
+        lastMousePos: [null, null],
+        origin: [0, 0],
+        // penDown: false,
+        // lastDist: 0,
+        // lastDirection: null,
+    }
 
     // some constants, enums, managers
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
     const Commands = utils.CommandManager.add({
         CREATE_PATH: {
             undo: (id) => {
-                paths.transfer(id, deleted);
+                data.paths.transfer(id, data.deletedPaths);
                 repaint();
             },
             redo: (id) => {
-                deleted.transfer(id, paths);
+                data.deletedPaths.transfer(id, data.paths);
                 repaint();
             },
         },
         DELETE_PATHS: {
             undo: (ids) => {
-                ids.forEach(id => deleted.transfer(id, paths));
+                ids.forEach(id => data.deletedPaths.transfer(id, data.paths));
                 repaint();
             },
             redo: (ids) => {
-                ids.forEach(id => paths.transfer(id, deleted));
+                ids.forEach(id => data.paths.transfer(id, data.deletedPaths));
                 repaint();
             },
         }
@@ -85,84 +86,52 @@
             generateDataURL: generateJSON,
         }
     });
-
     const CURSOR_WIDTH = 6,
           ERASER_WIDTH = 12;
+    const HELP_MESSAGE = `
+      Controls:
 
-    // rest of the globally used vars that change
-    let origin = [0, 0];
-    let penDown = false;
-
-    let lastCoords = [null, null];
-    let lastDist = 0;
-    let lastDirection = null;
-    let currPath = [];
-    let currErasures = [];
-
-    let paths = new utils.MyMap();
-    let deleted = new utils.MyMap();
-
-    const whiteboardData = {
-        renderedPaths: new utils.MyMap(),
-        deletedPaths : new utils.MyMap(),
-        currPath: [],
-        currErasures: [],
-        lastMousePos: [null, null],
-        origin: [0, 0],
-        penDown: false,
-        // lastDist: 0,
-        // lastDirection: null,
-    }
-
-
-
-    function showHelpMessage() {
-        let message = `
-          Controls:
-
-          Shift + mouse move
-           - erase
-          Space
-           - erase all
-          Right click + mouse move
-           - pan
-          Right click upper right margin + mouse move up/down
-           - zoom in/out
-          R,G,B
-           - pen colors
-          F
-           - default pen color (white or black)
-          Ctrl + Z
-           - undo (for drawing and erasing)
-          Ctrl + Y
-           - redo
-          Ctrl + S
-           - save as image
-          D
-           - toggle dark mode
-        `.replace(/  +/g, '');  // remove indents
-        console.log(message);
-    }
+      Shift + mouse move
+       - erase
+      Space
+       - erase all
+      Right click + mouse move
+       - pan
+      Right click upper right margin + mouse move up/down
+       - zoom in/out
+      R,G,B
+       - pen colors
+      F
+       - default pen color (white or black)
+      Ctrl + Z
+       - undo (for drawing and erasing)
+      Ctrl + Y
+       - redo
+      Ctrl + S
+       - save as image
+      D
+       - toggle dark mode
+    `.replace(/  +/g, '');  // remove indents
 
     function init(settings) {
-        initElements();     // onetime inits on load
+        initHTML();         // load page elements
         addEventListeners();
         onResize();         // canvas size init
         setDefaultPen();    // stroke color
         setDefaultCursor(); // cursor style
 
-        showHelpMessage();  // instructions
+        console.log(HELP_MESSAGE);  // instructions
     }
 
     /**** STYLING ****/
 
-    function initElements() {
+    function initHTML() {
         // called once on page load; adding and styling page elements
 
         // canvas
-        parent.insertBefore(canvas, parent.firstChild); //parent.appendChild(canvas);
-        parent.style.margin = '0%'; // full window area
-        utils.setStyle(canvas, {
+        html.parent.insertBefore(html.canvas, html.parent.firstChild); //parent.appendChild(canvas);
+        html.parent.style.margin = '0%'; // full window area
+        utils.setStyle(html.canvas, {
             display: 'block', // prevent scrollbars
             height: '100vh',  // full window area. 100vh != 100%
             width: '100vw',
@@ -171,8 +140,8 @@
         });
 
         // control area(s)
-        document.body.appendChild(zoomControlArea);
-        utils.setStyle(zoomControlArea, {
+        document.body.appendChild(html.zoomControlArea);
+        utils.setStyle(html.zoomControlArea, {
             position: 'fixed',
             right: '0px',
             top: '100px',
@@ -183,9 +152,9 @@
         });
 
         // cursor
-        parent.style.cursor = 'none'; // get rid of default mouse pointer
-        document.body.appendChild(cursor);
-        utils.setStyle(cursor, {
+        html.parent.style.cursor = 'none'; // get rid of default mouse pointer
+        document.body.appendChild(html.cursor);
+        utils.setStyle(html.cursor, {
             position: 'fixed',
             pointerEvents: 'none',
         });
@@ -193,7 +162,7 @@
 
     function setDefaultPen() {
         // canvas context stroking
-        utils.setProperties(ctx, {
+        utils.setProperties(html.ctx, {
             strokeStyle: Color.default,
             lineWidth: 4,
             lineCap: 'round',
@@ -201,7 +170,7 @@
     }
 
     function setDefaultCursor() {
-        utils.setStyle(cursor, {
+        utils.setStyle(html.cursor, {
             display: 'block',
             width: CURSOR_WIDTH + 'px',
             height: CURSOR_WIDTH + 'px',
@@ -213,11 +182,11 @@
     }
 
     function hideCursor() {
-      cursor.style.display = 'none'
+        html.cursor.style.display = 'none'
     }
 
     function setEraserCursor() {
-        utils.setStyle(cursor, {
+        utils.setStyle(html.cursor, {
             borderRadius: '0%',
             background: Color.background,
             width: ERASER_WIDTH + 'px',
@@ -229,14 +198,14 @@
 
     function setForegroundColor(newColor) {
         Color.foreground = newColor;
-        ctx.strokeStyle = Color.foreground;
+        html.ctx.strokeStyle = Color.foreground;
         // if cursor.style.background is default(black or white), invert it now; else leave it alone
-        cursor.style.background = Color.foreground;
+        html.cursor.style.background = Color.foreground;
     }
 
     function setBackgroundColor(newColor) {
         Color.background = newColor;
-        canvas.style.backgroundColor = Color.background;
+        html.canvas.style.backgroundColor = Color.background;
     }
 
     function toggleDarkMode() {
@@ -245,7 +214,7 @@
         setBackgroundColor(Color.default);
 
         // invert the paths of default color
-        paths = paths.map(invertDefaultColor);
+        data.paths = data.paths.map(invertDefaultColor);
         repaint();
     }
 
@@ -266,10 +235,10 @@
         // called once on page load
 
         // window events
-        utils.addListeners(window, {'resize'  : onResize});
-        utils.addListeners(parent, {'mouseout': onMouseOut});
+        utils.addListeners(window, {'resize' : onResize});
+        utils.addListeners(html.parent, {'mouseout': onMouseOut});
         // mouse events
-        utils.addListeners(canvas, {
+        utils.addListeners(html.canvas, {
             'mousedown': onMouseDown,
             'mouseup': onMouseUp,
             'mousemove': onMouseMove,
@@ -312,9 +281,9 @@
     // window
 
     function onResize() {
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
-        origin = [canvas.width / 2, canvas.height / 2];
+        html.canvas.width = html.canvas.clientWidth;
+        html.canvas.height = html.canvas.clientHeight;
+        data.origin = [html.canvas.width / 2, html.canvas.height / 2];
         // because board state has been reset:
         setDefaultPen();  // restore default stroke
         redrawAll();      // canvas was cleared
@@ -344,7 +313,7 @@
                 }
                 break;
             case 2: // right click
-                if (insideDiv(e, zoomControlArea)) {
+                if (insideDiv(e, html.zoomControlArea)) {
                     setMode(Mode.ZOOM);
                 }
                 else {
@@ -369,8 +338,8 @@
     }
 
     function onMouseMove(e) {
-        cursor.style.left = e.clientX - CURSOR_WIDTH/2 + 'px';
-        cursor.style.top = e.clientY - CURSOR_WIDTH/2 + 'px';
+        html.cursor.style.left = e.clientX - CURSOR_WIDTH/2 + 'px';
+        html.cursor.style.top  = e.clientY - CURSOR_WIDTH/2 + 'px';
 
         switch (Mode.current) {
             case Mode.PEN:
@@ -383,9 +352,9 @@
                 let factor = calcZoomFactor(e);
                 zoom(factor);
                 break;
-            case Mode.UNDO:
-                if ( switchedDirection(e) ) {undo();}
-                break;
+            // case Mode.UNDO:
+            //     if ( switchedDirection(e) ) {undo();}
+            //     break;
             case Mode.ERASE:
                 erase(e);
                 break;
@@ -393,7 +362,7 @@
 
 
         // update curr pos to become last pos
-        lastCoords = getRelativeMousePos(e);
+        data.lastMousePos = getRelativeMousePos(e);
 
         // ?
 //        requestAnimationFrame(() => onMouseMove(e));
@@ -406,8 +375,8 @@
     function draw(e) {
         // update newest point of current path
         let mousePos = getRelativeMousePos(e);
-        drawLine(lastCoords, mousePos);
-        currPath.push(mousePos);
+        drawLine(data.lastMousePos, mousePos);
+        data.currPath.push(mousePos);
     }
 
     function erase(e) {
@@ -419,15 +388,15 @@
         let erasedSomething = false;
 
         let mousePos = getRelativeMousePos(e);
-        let mouseMoveRect = utils.boundingRect(mousePos, lastCoords);
+        let mouseMoveRect = utils.boundingRect(mousePos, data.lastMousePos);
         utils.expandRect(mouseMoveRect, ERASER_WIDTH / 2);
 
-        paths.forEach((path, id) => {
+        data.paths.forEach((path, id) => {
             if ( utils.rectIntersectsPath(mouseMoveRect, path.path) ) {
-                // deleted.set(id, path);
-                // paths.delete(id);
-                paths.transfer(id, deleted)
-                currErasures.push(id);
+                // data.deletedPaths.set(id, path);
+                // data.paths.delete(id);
+                data.paths.transfer(id, data.deletedPaths)
+                data.currErasures.push(id);
                 erasedSomething = true;
             }
         });
@@ -436,10 +405,10 @@
     }
 
     function eraseAllPaths() {
-        if (paths.size > 0) {
-            Commands.record({type: Commands.DELETE_PATHS, args: Array.from(paths.keys())})
-            deleted = deleted.merge(paths);
-            paths.clear();
+        if (data.paths.size > 0) {
+            Commands.record({type: Commands.DELETE_PATHS, args: Array.from(data.paths.keys())})
+            data.deletedPaths = data.deletedPaths.merge(data.paths);
+            data.paths.clear();
 
             clearScreen();
         }
@@ -474,10 +443,10 @@
 
     function pan(e) {
         let mousePos = getRelativeMousePos(e);
-        let dx = mousePos[0] - lastCoords[0];
-        let dy = mousePos[1] - lastCoords[1];
+        let dx = mousePos[0] - data.lastMousePos[0];
+        let dy = mousePos[1] - data.lastMousePos[1];
 
-        paths = paths.map(p => ({
+        data.paths = data.paths.map(p => ({
             path: p.path.map(pt => utils.translatePoint(pt, dx, dy)),
             color: p.color,
         }));
@@ -486,8 +455,8 @@
 
     function zoom(factor) {
 
-        paths = paths.map(p => ({
-            path: p.path.map(pt => utils.scale(pt, factor, origin)),
+        data.paths = data.paths.map(p => ({
+            path: p.path.map(pt => utils.scale(pt, factor, data.origin)),
             color: p.color,
         }));
         repaint();
@@ -497,11 +466,11 @@
 
     function clearScreen() {
         // just whites canvas but not data
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        html.ctx.clearRect(0, 0, html.canvas.width, html.canvas.height);
     }
 
     function redrawAll() {
-        paths.forEach(drawPath);
+        data.paths.forEach(drawPath);
     }
 
     function repaint() {
@@ -513,9 +482,9 @@
 
     function generatePNG() {
     // function generatePNG(state)
-        if (paths.size == 0) return;
+        if (data.paths.size == 0) return;
 
-        let ptArrs = Array.from(paths.values()).map(p => p.path);
+        let ptArrs = Array.from(data.paths.values()).map(p => p.path);
         let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
         let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
         let left   = utils.min(xs),
@@ -534,7 +503,7 @@
         tempCanvas.width = totalWidth;
         tempCanvas.height = totalHeight;
 
-        let tempPaths = paths.map(pathObj => ({
+        let tempPaths = data.paths.map(pathObj => ({
             path: pathObj.path.map(
                  pt => utils.translatePoint(pt,
                                             -left + margin,
@@ -543,27 +512,24 @@
             color: pathObj.color
         }));
 
-        let oldCtx = ctx,
-            oldCanvas = canvas,
-            oldPaths = paths;
+        let oldCtx = html.ctx,
+            oldCanvas = html.canvas,
+            oldPaths = data.paths;
 
-        canvas = tempCanvas;
-        ctx = tempCtx;
-        paths = tempPaths;
+        html.canvas = tempCanvas;
+        html.ctx = tempCtx;
+        data.paths = tempPaths;
 
         setDefaultPen();
-        ctx.fillStyle = Color.background;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        html.ctx.fillStyle = Color.background;
+        html.ctx.fillRect(0, 0, html.canvas.width, html.canvas.height);
         redrawAll();
 
-        // create and download file
-        // link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
-        // link.click();
-        let dataURL = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream")
+        let dataURL = html.canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
 
-        canvas = oldCanvas;
-        ctx = oldCtx;
-        paths = oldPaths;
+        html.canvas = oldCanvas;
+        html.ctx = oldCtx;
+        data.paths = oldPaths;
 
         return dataURL;
     }
@@ -579,16 +545,13 @@
             paths: stripIDs(state.paths),
         });
 
-        // link.href = 'data:application/json,' + jsonStr;
-        // link.download = 'whiteboard.json';
-        // link.click();
         return 'data:application/json,' + jsonStr;
     }
 
     let currentState = () => ({
         // timestamp: Date.now(),
         darkMode: (Color.background == Color.BLACK),
-        paths: paths,
+        paths: data.paths,
         // deleted: deleted,
         // history: Commands.history,
         // undoHistory: Commands.undoHistory,
@@ -606,8 +569,8 @@
     }
 
     function clearCurrentState() {
-        paths.clear();
-        deleted.clear();
+        data.paths.clear();
+        data.deletedPaths.clear();
         Commands.history = [];
         Commands.undoHistory = [];
     }
@@ -618,7 +581,7 @@
 
         // add paths
         // state.paths.forEach(path => paths.set(newID(), path));
-        paths = addIDs(state.paths);
+        data.paths = addIDs(state.paths);
 
         // render
         let currentDarkMode = (Color.background == Color.BLACK);
@@ -717,27 +680,27 @@
 
     function startDraw(e) {
         setMode(Mode.PEN);
-        currPath = [];  // reset curr path
+        data.currPath = [];  // reset curr path
         draw(e);        // draw a dot, covering case of single click
     }
 
     function stopDraw() {
         // penup; finish the path
         let id = newID();
-        paths.set(id, {path: currPath, color: Color.foreground});
+        data.paths.set(id, {path: data.currPath, color: Color.foreground});
         Commands.record({type: Commands.CREATE_PATH, args: id})
     }
 
     function stopErase() {
-        if (currErasures.length > 0) {
-            Commands.record({type: Commands.DELETE_PATHS, args: currErasures});
-            currErasures = [];
+        if (data.currErasures.length > 0) {
+            Commands.record({type: Commands.DELETE_PATHS, args: data.currErasures});
+            data.currErasures = [];
         }
     }
 
     function drawPath(p) {
         // connect series of points on canvas
-        ctx.strokeStyle = p.color;    // temporarily set ctx color for this path
+        html.ctx.strokeStyle = p.color;    // temporarily set ctx color for this path
 
         let i = 0;
         let numPts = p.path.length;
@@ -757,22 +720,23 @@
             i += 1;
         }
 
-        ctx.strokeStyle = Color.foreground;  // return to old
+        html.ctx.strokeStyle = Color.foreground;  // return to old
     }
 
     function drawLine(pt1, pt2) {
         // straight line on canvas
-        ctx.beginPath();
-        ctx.moveTo(...pt1);
-        ctx.lineTo(...pt2);
-        ctx.stroke();
+        // called during each frame of live draw, or multiple times for rendering a stored path
+        html.ctx.beginPath();
+        html.ctx.moveTo(...pt1);
+        html.ctx.lineTo(...pt2);
+        html.ctx.stroke();
     }
 
     // other
 
     function calcZoomFactor(e) {
         // helper for zoom command
-        let dy = e.clientY - lastCoords[1];
+        let dy = e.clientY - data.lastMousePos[1];
         dy = Math.min(dy, 90)  // avoid zooming by nonpositive factor:
         return 1 - (dy/100);    // arbitrary descaling by 100
     }
@@ -841,5 +805,5 @@
 
     //    init(); //window.addEventListener('load', init);  // load automatically, no outside customization
     window.whiteboard = {init,}; // let caller decide when to load by using whiteboard.init()
-    window.p = () => paths;
+    window.p = () => data.paths;
 })();
