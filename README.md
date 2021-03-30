@@ -65,3 +65,5 @@ down the road...
 - [ ] networking to communicate between two people??i guess just hosted on a little server using sockets or something
 - [ ] local bluetooth app?????
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
+- [ ] or student scans QR code that will go to website, connected to my whiteboard session
+- [ ] favicon

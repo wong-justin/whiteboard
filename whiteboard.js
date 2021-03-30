@@ -19,8 +19,6 @@
  **/
 
 
-
-
 // path:
 // {id, points, color}
 
@@ -63,7 +61,7 @@
         RED: 'red',
         BLUE: 'blue',
         GREEN: 'green',
-        foreground: 'white',
+        foreground: 'white',  // default start in dark mode
         background: 'black',
         // opposite of background, aka default foreground
         get default() {return (Color.background == Color.WHITE ? Color.BLACK : Color.WHITE)},
@@ -274,7 +272,8 @@
                 'y': () => Commands.redo(),
                 's': (e) => {
                     e.preventDefault();
-                    save();
+                    // save();
+                    exportJSON();
                 }
             }
         });
@@ -535,18 +534,85 @@
         paths = oldPaths;
     }
 
-    /*
-    function export() {
+    function exportJSON() {
 
-        link.href = JSON.writes(paths);
+        let json = JSON.stringify({
+            timestamp: Date.now(),
+            darkMode: (Color.background == Color.BLACK),
+            paths: Array.from(paths.values()),
+        });
 
-
+        link.href = 'data:application/json,' + json;
+        link.download = 'whiteboard.json';
+        link.click();
     }
 
-    function import() {
+    function importState(state) {
+        // {timestamp, darkMode, paths}
 
+        // clear current state
+        paths.clear();
+        deleted.clear();
+        Commands.history = [];
+        Commands.undoHistory = [];
+
+        // add paths
+        state.paths.forEach(path => paths.set(newID(), path));
+
+        // render
+        let currentDarkMode = (Color.background == Color.BLACK);
+        if (currentDarkMode != state.darkMode) {
+            toggleDarkMode();
+        }
+        repaint();
+
+
+        // safe version:
+
+        // let {paths, deleted, commandHistory} = getState();
+        // try {
+        //     let {timestamp, paths} = JSON.parse(json);
+        //     restoreState({paths,})
+        // }
+        // catch {
+        //     console.log('error importing');
+        //     restoreState({paths, deleted, commandHistory});
+        // }
     }
-    */
+
+    // preventing default drag behavior
+    document.addEventListener('dragover', e => e.preventDefault());
+    // document.addEventListener('dragenter', e => e.preventDefault());
+
+    document.addEventListener('drop', (e) => {
+        e.preventDefault();
+
+        let file = e.dataTransfer.items[0].getAsFile();
+        console.log(file);
+
+        readJSONFile(file).then(result => {
+            console.log(result);
+            importState(result);
+        });
+
+
+
+        // if (e.dataTransfer.items) {
+        //
+        //
+        // }
+    });
+
+    function readJSONFile(file) {
+        return new Promise(resolve => {
+            let reader = new FileReader();
+            reader.onload = (e) => {
+                let text = e.target.result;
+                resolve(JSON.parse(text));
+            };
+            reader.readAsText(file);
+        });
+    }
 
     /**** HELPERS ****/
 
@@ -665,7 +731,6 @@
                 hideCursor();
                 break;
             case Mode.ERASE:
-                // eraserCursor();
                 setEraserCursor();
         }
         Mode.current = newMode;
