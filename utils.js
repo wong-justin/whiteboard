@@ -183,48 +183,31 @@
 
     /**** generalized managers ****/
 
-    let KeypressListeners = {
-        // KeypressListeners.add({
-        //   onPress: {'key': fn, ...},
-        //   onHold: {'key': {start: fn, end: fn}, ...},
-        //   onCtrlPress: {'key': fn, ...},
-        // })
-        add({onPress, onCtrlPress, onHold}) {
-            // main setup function to be called
-            this.onPress = onPress;
-            this.onCtrlPress = onCtrlPress;
-            this.onHold = onHold;
-            this._finalize();
-        },
-        // {key: fn}
-        onPress: {},
-        // {key: fn}
-        onCtrlPress: {},
-        // {key: {start: fn, end: fn}}
-        set onHold(keysCallbacks) {
-            // has to be separated into keydown, keyup events
-            for (let [key, {start, end}] of Object.entries(keysCallbacks)) {
-                this._onHoldStart[key] = start;
-                this._onHoldEnd[key] = end;
+    function setKeypressListeners({onPress = {}, onCtrlPress = {}, onHold = {},}) {
+        let _onPress = onPress;
+        let _onCtrlPress = onCtrlPress;
+        let _onHoldStart = {};
+        let _onHoldEnd = {};
+
+        // "hold" has to be separated into keydown, keyup events
+        for (let [key, {start, end}] of Object.entries(onHold)) {
+            _onHoldStart[key] = start;
+            _onHoldEnd[key] = end;
+        }
+
+        // add all event listeners to window
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey) {
+                safelyCall(e.key, _onCtrlPress)(e);
             }
-        },
-        _onHoldStart: {},
-        _onHoldEnd: {},
-        _finalize() {
-            // add all event listeners to window
-            window.addEventListener('keydown', (e) => {
-                if (e.ctrlKey) {
-                    safelyCall(e.key, this.onCtrlPress)(e);
-                }
-                else {
-                    safelyCall(e.key, this.onPress)(e);
-                    safelyCall(e.key, this._onHoldStart)(e);
-                }
-            });
-            window.addEventListener('keyup', (e) => {
-                safelyCall(e.key, this._onHoldEnd)(e);
-            });
-        },
+            else {
+                safelyCall(e.key, _onPress)(e);
+                safelyCall(e.key, _onHoldStart)(e);
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            safelyCall(e.key, _onHoldEnd)(e);
+        });
     }
 
     function safelyCall(key, dict) {
@@ -234,73 +217,72 @@
        else return () => {};
     }
 
-    let CommandManager = {
-        // CommandManager.add({command_name: {undo: fn, redo: fn}, ...})
-        _enumCount: 0,
-        history: [],
-        undoHistory: [],
-        undoHandlers: {},
-        redoHandlers: {},
-        add: function(commands) {
-            // setup, creating enums for command types and registering undo/redo callbacks
-            for (let [type, {undo, redo}] of Object.entries(commands)) {
-                this[type] = this._enumCount++;
-                this.undoHandlers[this[type]] = undo;
-                this.redoHandlers[this[type]] = redo;
-            }
-            return this;
-        },
-        record: function({type, args}) {
+    function CommandManager(commands) {
+        // constructor function
+        // let Commands = new CommandManager({COMMAND_NAME: {undo: fn(args), redo: fn(args)}, ...})
+        // Commands.record({type: Commands.COMMAND_NAME, args: ...})
+        // Commands.undo();
+
+        let enumCount = 0;
+        this.history = [];
+        this.undoHistory = [];
+        let undoHandlers = {};
+        let redoHandlers = {};
+        // setup, creating enums for command types and registering undo/redo callbacks
+        for (let [type, {undo, redo}] of Object.entries(commands)) {
+            this[type] = enumCount++;
+            undoHandlers[this[type]] = undo;
+            redoHandlers[this[type]] = redo;
+        }
+
+        this.record = function({type, args}) {
             // add an executed command to history
             // not a standard execute() according to the pattern
-            //  bc of the delayed and multipart nature of these particular commands
+            //  (like `executeHandlers[type](...args)` )
+            //  bc of the delayed and multipart nature of these
+            //  particular commands having specialised execution needs.
 
-            // if (perform) {
-            //   this.executeHandlers[type](...args);
-            // }
             this.history.push({type, args});
 
             // reset redos in case there were any possible; no more allowed once new commands performed
             this.undoHistory = [];
-        },
-        undo: function() {
+        };
+
+        this.undo = function() {
             if (this.history.length == 0) return;
 
             let {type, args} = this.history.pop();
-            this.undoHandlers[type](args);
+            undoHandlers[type](args);
 
             this.undoHistory.push({type, args});
-        },
-        redo: function() {
+        };
+
+        this.redo = function() {
             if (this.undoHistory.length == 0) return;
 
             let {type, args} = this.undoHistory.pop();
-            this.redoHandlers[type](args);
+            redoHandlers[type](args);
 
             this.history.push({type, args});
-        },
+        };
     }
 
-    let Export = {
-        // Export.set({PNG: {filename: 'export.png', generateDataURL: fn}})
+    function ExportManager(types) {
+        // constructor function
+        // let Export = new ExportManager({PNG: {filename: 'export.png', generateDataURL: fn}})
         // Export.PNG();
-        link: createHiddenLink(),
-        setTypes: function(types) {
-            for (let [type, {filename, generateDataURL}] of Object.entries(types)) {
-                this[type] = () => {
-                    this.link.download = filename;
-                    this.link.href = generateDataURL();
-                    this.link.click();
-                }
-            }
-            return this;
-        },
-    }
 
-    function createHiddenLink() {
+        // hidden download link
         let link = document.createElement('a');
-        link.style.display = 'none'
-        return link;
+        link.style.display = 'none';
+
+        for (let [type, {filename, generateDataURL}] of Object.entries(types)) {
+            this[type] = () => {
+                link.download = filename;
+                link.href = generateDataURL();
+                link.click();
+            }
+        }
     }
 
     window.utils = {
@@ -320,9 +302,9 @@
         setStyle,
         setProperties,
         addListeners,
-        KeypressListeners,
+        setKeypressListeners,
         CommandManager,
-        Export
+        ExportManager,
     }
 
 })();

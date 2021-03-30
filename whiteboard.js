@@ -43,8 +43,19 @@
     html.ctx = html.canvas.getContext('2d');
 
     // some enums, managers, constants
-    const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
-    const Commands = utils.CommandManager.add({
+    const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null};
+		const Color = {
+        BLACK: 'black',
+        WHITE: 'white',
+        RED: 'red',
+        BLUE: 'blue',
+        GREEN: 'green',
+        foreground: 'white',  // default start in dark mode
+        background: 'black',
+        // opposite of background, aka default foreground
+        get default() {return (Color.background == Color.WHITE ? Color.BLACK : Color.WHITE)},
+    };
+		const Commands = new utils.CommandManager({
         CREATE_PATH: {
             undo: (id) => {
                 data.paths.transfer(id, data.deletedPaths);
@@ -66,18 +77,7 @@
             },
         }
     });
-    const Color = {
-        BLACK: 'black',
-        WHITE: 'white',
-        RED: 'red',
-        BLUE: 'blue',
-        GREEN: 'green',
-        foreground: 'white',  // default start in dark mode
-        background: 'black',
-        // opposite of background, aka default foreground
-        get default() {return (Color.background == Color.WHITE ? Color.BLACK : Color.WHITE)},
-    }
-    const Export = utils.Export.setTypes({
+		const Export = new utils.ExportManager({
         PNG: {
             filename: 'whiteboard.png',   // timestamp?
             generateDataURL: generatePNG,
@@ -87,6 +87,14 @@
             generateDataURL: generateJSON,
         }
     });
+    // const PathManager = {
+    //       existing: new MyMap(),
+    //       deleted: new MyMap(),
+    //       currPoints: [],
+    //       currDeletions: [],
+		// 			createPath: function() {},
+		// 			deletePaths: function() {},
+    // }
     const CURSOR_WIDTH = 6,
           ERASER_WIDTH = 12;
     const HELP_MESSAGE = `
@@ -246,7 +254,7 @@
             'contextmenu': (e) => e.preventDefault(),
         });
         // key events
-        utils.KeypressListeners.add({
+				utils.setKeypressListeners({
             onHold: {
                 'Shift': {
                     start: () => setMode(Mode.ERASE),
