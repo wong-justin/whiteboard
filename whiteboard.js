@@ -20,6 +20,19 @@
 
 (() => {
 
+    // global vars
+    const data = {
+        paths: new utils.MyMap(),
+        deletedPaths : new utils.MyMap(),
+        currPoints: [],
+        currErasures: [],
+        lastMousePos: [null, null],
+        origin: [0, 0],
+        // penDown: false,
+        // lastDist: 0,
+        // lastDirection: null,
+    }
+
     const html = {
         parent: document.body,  // maybe have caller initialize this?
         canvas: document.createElement('canvas'),
@@ -29,19 +42,7 @@
     }
     html.ctx = html.canvas.getContext('2d');
 
-    const data = {
-        paths: new utils.MyMap(),
-        deletedPaths : new utils.MyMap(),
-        currPath: [],
-        currErasures: [],
-        lastMousePos: [null, null],
-        origin: [0, 0],
-        // penDown: false,
-        // lastDist: 0,
-        // lastDirection: null,
-    }
-
-    // some constants, enums, managers
+    // some enums, managers, constants
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
     const Commands = utils.CommandManager.add({
         CREATE_PATH: {
@@ -222,7 +223,7 @@
       // change black to white or vice versa; leave other colors alone
       // called after background color has been changed
         return {
-            path: path.path,
+            points: path.points,
             color: (path.color == Color.background) ?
                 Color.default :
                 path.color
@@ -376,7 +377,7 @@
         // update newest point of current path
         let mousePos = getRelativeMousePos(e);
         drawLine(data.lastMousePos, mousePos);
-        data.currPath.push(mousePos);
+        data.currPoints.push(mousePos);
     }
 
     function erase(e) {
@@ -392,7 +393,7 @@
         utils.expandRect(mouseMoveRect, ERASER_WIDTH / 2);
 
         data.paths.forEach((path, id) => {
-            if ( utils.rectIntersectsPath(mouseMoveRect, path.path) ) {
+            if ( utils.rectIntersectsPath(mouseMoveRect, path.points) ) {
                 // data.deletedPaths.set(id, path);
                 // data.paths.delete(id);
                 data.paths.transfer(id, data.deletedPaths)
@@ -447,7 +448,7 @@
         let dy = mousePos[1] - data.lastMousePos[1];
 
         data.paths = data.paths.map(p => ({
-            path: p.path.map(pt => utils.translatePoint(pt, dx, dy)),
+            points: p.points.map(pt => utils.translatePoint(pt, dx, dy)),
             color: p.color,
         }));
         repaint();
@@ -456,7 +457,7 @@
     function zoom(factor) {
 
         data.paths = data.paths.map(p => ({
-            path: p.path.map(pt => utils.scale(pt, factor, data.origin)),
+            points: p.points.map(pt => utils.scale(pt, factor, data.origin)),
             color: p.color,
         }));
         repaint();
@@ -484,7 +485,7 @@
     // function generatePNG(state)
         if (data.paths.size == 0) return;
 
-        let ptArrs = Array.from(data.paths.values()).map(p => p.path);
+        let ptArrs = Array.from(data.paths.values()).map(p => p.points);
         let xs = ptArrs.map(path => path.map(pt => pt[0])).flat();
         let ys = ptArrs.map(path => path.map(pt => pt[1])).flat();
         let left   = utils.min(xs),
@@ -503,13 +504,13 @@
         tempCanvas.width = totalWidth;
         tempCanvas.height = totalHeight;
 
-        let tempPaths = data.paths.map(pathObj => ({
-            path: pathObj.path.map(
+        let tempPaths = data.paths.map(path => ({
+            points: path.points.map(
                  pt => utils.translatePoint(pt,
                                             -left + margin,
                                             -bottom + margin)
             ),
-            color: pathObj.color
+            color: path.color
         }));
 
         let oldCtx = html.ctx,
@@ -680,14 +681,14 @@
 
     function startDraw(e) {
         setMode(Mode.PEN);
-        data.currPath = [];  // reset curr path
+        data.currPoints = [];  // reset curr path
         draw(e);        // draw a dot, covering case of single click
     }
 
     function stopDraw() {
         // penup; finish the path
         let id = newID();
-        data.paths.set(id, {path: data.currPath, color: Color.foreground});
+        data.paths.set(id, {points: data.currPoints, color: Color.foreground});
         Commands.record({type: Commands.CREATE_PATH, args: id})
     }
 
@@ -698,13 +699,13 @@
         }
     }
 
-    function drawPath(p) {
+    function drawPath(path) {
         // connect series of points on canvas
-        html.ctx.strokeStyle = p.color;    // temporarily set ctx color for this path
+        html.ctx.strokeStyle = path.color;    // temporarily set ctx color for this path
 
         let i = 0;
-        let numPts = p.path.length;
-        lastPt = p.path[i];
+        let numPts = path.points.length;
+        lastPt = path.points[i];
         i += 1
         if (numPts == 1) {  // case of just a dot
             drawLine(lastPt, lastPt);
@@ -713,7 +714,7 @@
 
         while (i < numPts) {
 
-            currPt = p.path[i];
+            currPt = path.points[i];
             drawLine(lastPt, currPt);
 
             lastPt = currPt;
