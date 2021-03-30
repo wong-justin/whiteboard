@@ -35,7 +35,6 @@ gesture ideas:
 
 other features:
 - [x] undo
-    - [ ] only track last n commands, ie delete oldest unused paths from memory
 - [x] redo
 - [x] clear all (spacebar)
 - [x] pan infinitely
@@ -50,6 +49,7 @@ other features:
 - [x] export as image (ctrl-s)
 - [ ] import/export state
     - [ ] import json state by dragging file into page, like uploading an image to a website
+    - [ ] or maybe override ctrl-o
 - [ ] import any image (ctrl i?)
 - [ ] simple text box (hit Enter to start typing at cursor?)
 
@@ -60,6 +60,7 @@ for better performance...
 - [ ] cursor display on canvas instead of div element forcing update
 - [ ] investigate clipping mask on canvas redraw?
 - [ ] store less points in paths or interpolate or curve, eg remove super close points in a path
+- [ ] only track last n commands for undo, ie delete oldest unused paths from memory
 
 down the road...
 - [ ] networking to communicate between two people??i guess just hosted on a little server using sockets or something
@@ -67,3 +68,5 @@ down the road...
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 - [ ] or student scans QR code that will go to website, connected to my whiteboard session
 - [ ] favicon
+- [ ] consistent internal naming for clear types (eg what is a path?)
+    - [ ] typescript??

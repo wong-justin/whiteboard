@@ -30,8 +30,17 @@
     let zoomControlArea = document.createElement('div');
     let undoControlArea = document.createElement('div');
     let cursor = document.createElement('div');
-    let link = document.createElement('a');
-    // some constants, enums
+
+    // const html = {
+    //     parent: ,
+    //     canvas: ,
+    //     ctx: ,
+    //     zoomControlArea: ,
+    //     undoControlArea: ,
+    //     cursor: ,
+    // }
+
+    // some constants, enums, managers
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null}
     const Commands = utils.CommandManager.add({
         CREATE_PATH: {
@@ -66,8 +75,19 @@
         // opposite of background, aka default foreground
         get default() {return (Color.background == Color.WHITE ? Color.BLACK : Color.WHITE)},
     }
-    let cursorWidth = 6;
-    let eraserWidth = 12;
+    const Export = utils.Export.setTypes({
+        PNG: {
+            filename: 'whiteboard.png',   // timestamp?
+            generateDataURL: generatePNG,
+        },
+        JSON: {
+            filename: 'whiteboard.json',  // timestamp?
+            generateDataURL: generateJSON,
+        }
+    });
+
+    const CURSOR_WIDTH = 6,
+          ERASER_WIDTH = 12;
 
     // rest of the globally used vars that change
     let origin = [0, 0];
@@ -81,6 +101,20 @@
 
     let paths = new utils.MyMap();
     let deleted = new utils.MyMap();
+
+    const whiteboardData = {
+        renderedPaths: new utils.MyMap(),
+        deletedPaths : new utils.MyMap(),
+        currPath: [],
+        currErasures: [],
+        lastMousePos: [null, null],
+        origin: [0, 0],
+        penDown: false,
+        // lastDist: 0,
+        // lastDirection: null,
+    }
+
+
 
     function showHelpMessage() {
         let message = `
@@ -155,11 +189,6 @@
             position: 'fixed',
             pointerEvents: 'none',
         });
-
-        // misc? background download element
-        link.style.display = 'none';      // invisible
-        link.download = 'whiteboard.png'; // filename; make renameable? auto increment count, eg whiteboard_2.png?
-        // link.setAttribute('download', 'whiteboard.png');
     }
 
     function setDefaultPen() {
@@ -174,8 +203,8 @@
     function setDefaultCursor() {
         utils.setStyle(cursor, {
             display: 'block',
-            width: cursorWidth + 'px',
-            height: cursorWidth + 'px',
+            width: CURSOR_WIDTH + 'px',
+            height: CURSOR_WIDTH + 'px',
             borderRadius: '50%',
             background: Color.foreground,
             // background: Color.default,
@@ -191,8 +220,8 @@
         utils.setStyle(cursor, {
             borderRadius: '0%',
             background: Color.background,
-            width: eraserWidth + 'px',
-            height: eraserWidth + 'px',
+            width: ERASER_WIDTH + 'px',
+            height: ERASER_WIDTH + 'px',
             // border: '1px solid ' + foregroundColor,
             border: '1px solid ' + Color.default,
         });
@@ -272,8 +301,9 @@
                 'y': () => Commands.redo(),
                 's': (e) => {
                     e.preventDefault();
-                    // save();
-                    exportJSON();
+                    // exportPNG();
+                    // exportJSON();
+                    Export.JSON();
                 }
             }
         });
@@ -306,10 +336,10 @@
     function onMouseDown(e) {
         switch (e.button) {
             case 0: // left click
-                if (Mode.current == Mode.UNDO) {// && insideDiv(e, undoControlArea)) {
-                    lastDirection = null;
-                }
-                else if (Mode.current === null) {
+                // if (Mode.current == Mode.UNDO) {// && insideDiv(e, undoControlArea)) {
+                //     lastDirection = null;
+                // } else
+                if (Mode.current === null) {
                     startDraw(e);
                 }
                 break;
@@ -339,8 +369,8 @@
     }
 
     function onMouseMove(e) {
-        cursor.style.left = e.clientX - cursorWidth/2 + 'px';
-        cursor.style.top = e.clientY - cursorWidth/2 + 'px';
+        cursor.style.left = e.clientX - CURSOR_WIDTH/2 + 'px';
+        cursor.style.top = e.clientY - CURSOR_WIDTH/2 + 'px';
 
         switch (Mode.current) {
             case Mode.PEN:
@@ -390,7 +420,7 @@
 
         let mousePos = getRelativeMousePos(e);
         let mouseMoveRect = utils.boundingRect(mousePos, lastCoords);
-        utils.expandRect(mouseMoveRect, eraserWidth / 2);
+        utils.expandRect(mouseMoveRect, ERASER_WIDTH / 2);
 
         paths.forEach((path, id) => {
             if ( utils.rectIntersectsPath(mouseMoveRect, path.path) ) {
@@ -481,7 +511,8 @@
 
     // I/O
 
-    function save() {
+    function generatePNG() {
+    // function generatePNG(state)
         if (paths.size == 0) return;
 
         let ptArrs = Array.from(paths.values()).map(p => p.path);
@@ -526,38 +557,68 @@
         redrawAll();
 
         // create and download file
-        link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
-        link.click();
+        // link.setAttribute('href', canvas.toDataURL("image/png").replace("image/png", "image/octet-stream"));
+        // link.click();
+        let dataURL = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream")
 
         canvas = oldCanvas;
         ctx = oldCtx;
         paths = oldPaths;
+
+        return dataURL;
     }
 
-    function exportJSON() {
+    function generateJSON() {
+    // function generateJSON(state)
 
-        let json = JSON.stringify({
+        let state = currentState();
+
+        let jsonStr = JSON.stringify({
             timestamp: Date.now(),
-            darkMode: (Color.background == Color.BLACK),
-            paths: Array.from(paths.values()),
+            darkMode: state.darkMode,
+            paths: stripIDs(state.paths),
         });
 
-        link.href = 'data:application/json,' + json;
-        link.download = 'whiteboard.json';
-        link.click();
+        // link.href = 'data:application/json,' + jsonStr;
+        // link.download = 'whiteboard.json';
+        // link.click();
+        return 'data:application/json,' + jsonStr;
     }
 
-    function importState(state) {
-        // {timestamp, darkMode, paths}
+    let currentState = () => ({
+        // timestamp: Date.now(),
+        darkMode: (Color.background == Color.BLACK),
+        paths: paths,
+        // deleted: deleted,
+        // history: Commands.history,
+        // undoHistory: Commands.undoHistory,
+    });
 
-        // clear current state
+    function stripIDs(pathsWithIDs) {
+        // returns simple array of {path, color} objs
+        return Array.from(pathsWithIDs.values());
+    }
+
+    function addIDs(paths) {
+        return new utils.MyMap(
+            paths.map(p => [newID(), p])
+        );
+    }
+
+    function clearCurrentState() {
         paths.clear();
         deleted.clear();
         Commands.history = [];
         Commands.undoHistory = [];
+    }
+
+    function importState(state) {
+
+        clearCurrentState();
 
         // add paths
-        state.paths.forEach(path => paths.set(newID(), path));
+        // state.paths.forEach(path => paths.set(newID(), path));
+        paths = addIDs(state.paths);
 
         // render
         let currentDarkMode = (Color.background == Color.BLACK);
@@ -568,25 +629,55 @@
 
 
         // safe version:
-
-        // let {paths, deleted, commandHistory} = getState();
-        // try {
-        //     let {timestamp, paths} = JSON.parse(json);
-        //     restoreState({paths,})
-        // }
-        // catch {
-        //     console.log('error importing');
-        //     restoreState({paths, deleted, commandHistory});
-        // }
+        /*
+        let {paths, deleted, commandHistory} = getState();
+        try {
+            let {timestamp, paths} = JSON.parse(json);
+            restoreState({paths,})
+        }
+        catch {
+            console.log('error importing');
+            restoreState({paths, deleted, commandHistory});
+        }
+        */
     }
 
     // preventing default drag behavior
     document.addEventListener('dragover', e => e.preventDefault());
-    // document.addEventListener('dragenter', e => e.preventDefault());
+    document.addEventListener('dragenter', e => {
+    // document.addEventListener('dragstart', e => {
+        // e.preventDefault()
+        // e.dataTransfer.effectAllowed = 'copy';
+        console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
+        // e.dataTransfer.dropEffect = 'none';
+    });
 
     document.addEventListener('drop', (e) => {
         e.preventDefault();
+        console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
+        // chromium: copyMove, none
+        // firefox:  uninitialized, move
 
+
+        // investigating fman solution
+        /*
+        console.log(e.dataTransfer.getData('text'));
+        // return;
+
+        let a = e.dataTransfer.items[0];
+        console.log(a);
+        // a.getAsFileSystemHandle().then(result => console.log(result))
+        // a.getAsString(s => console.log(s));
+        // return;
+
+        let f = new FileReader();
+        f.onload = (e) => {
+            console.log(e.target.result)
+        }
+        f.readAsDataURL(a.getAsFile());
+        */
+
+        // standard; works with fman on firefox but not chrome
         let file = e.dataTransfer.items[0].getAsFile();
         console.log(file);
 
@@ -750,4 +841,5 @@
 
     //    init(); //window.addEventListener('load', init);  // load automatically, no outside customization
     window.whiteboard = {init,}; // let caller decide when to load by using whiteboard.init()
+    window.p = () => paths;
 })();

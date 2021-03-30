@@ -281,6 +281,28 @@
         },
     }
 
+    let Export = {
+        // Export.set({PNG: {filename: 'export.png', generateDataURL: fn}})
+        // Export.PNG();
+        link: createHiddenLink(),
+        setTypes: function(types) {
+            for (let [type, {filename, generateDataURL}] of Object.entries(types)) {
+                this[type] = () => {
+                    this.link.download = filename;
+                    this.link.href = generateDataURL();
+                    this.link.click();
+                }
+            }
+            return this;
+        },
+    }
+
+    function createHiddenLink() {
+        let link = document.createElement('a');
+        link.style.display = 'none'
+        return link;
+    }
+
     window.utils = {
         scale,
         // relativeTo,
@@ -300,6 +322,7 @@
         addListeners,
         KeypressListeners,
         CommandManager,
+        Export
     }
 
 })();
