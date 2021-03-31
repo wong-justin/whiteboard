@@ -139,15 +139,15 @@
        - undo (for drawing and erasing)
       Ctrl + Y
        - redo
-			Ctrl + P
-			 - save as image
+      Ctrl + P
+       - save as image
 			Ctrl + S
 			 - export whiteboard
 			Ctrl + O or drag and drop
 			 - import whiteboard
 			D
        - toggle dark mode
-    `.replace(/  +/g, '');  // remove indents
+		`.replace(/(?<=\n)[\t ]+/g, '');  // remove indents
 
     function init(settings) {
         initHTML();       // load page elements
@@ -802,5 +802,4 @@
 
     //    init(); //window.addEventListener('load', init);  // load automatically, no outside customization
     window.whiteboard = {init,}; // let caller decide when to load by using whiteboard.init()
-    window.p = () => data.paths;
 })();

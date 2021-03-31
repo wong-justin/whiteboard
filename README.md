@@ -23,7 +23,7 @@ https://wong-justin.github.io/whiteboard/
 | `D`                                                  | toggle dark mode                   |
 
 
-gesture ideas:
+#### gesture ideas:
 - [x] right click and drag to pan
 - [x] shift click to erase
 
@@ -35,24 +35,13 @@ gesture ideas:
     - [ ] drag selection
     - [ ] pan and zoom surroundings leave selection unaffected?
     - [ ] erase by selecting polygon around paths to delete?
+    - [ ] change color of selected paths - {command.CHANGE_COLOR, ids, oldColors, newColor}
 
-other features:
-- [x] undo
-- [x] redo
-- [x] clear all (spacebar)
-- [x] pan infinitely
-- [x] zoom in/out
-    - [x] right click + drag slider at top right
-
-- [x] change colors (r,g,b keys and f for black)
-    - [ ] custom color codes?
+#### other features:
+- [ ] custom color codes?
 
 - [ ] custom keybindings? like for stylus not having shift or right click
-
-- [x] export as image (ctrl-s)
-- [x] import/export state
-    - [x] import json state by dragging file into page, like uploading an image to a website
-    - [x] or maybe override ctrl-o
+    - [ ] also other settings, maybe on init, like show invisible divs (ie zoom boundaries)
 
 - [ ] restore default settings, if customizable settings allowed
 - [ ] remember recent state in case of emergency
@@ -60,24 +49,31 @@ other features:
     - [ ] update backup on interval? (eg every 3 min)
     - [ ] local browser storage (as string?)
 
-other whiteboard renderables besides drawn paths:
-- [ ] import any image (ctrl i?)
-- [ ] simple text box (hit Enter to start typing at cursor?)
+#### other renderables besides drawn paths:
+- [ ] import any image (ctrl i?) (probably drag and drop actually) repr: {type: 'image', boundingRect, originalImageData?, ...? }
+- [ ] simple text box (hit Enter to start typing at cursor?) repr: {type: 'text', boundingRect, [fontSize determined by bounds?]}
+- [ ] resizeable (scale text or image)
+
+#### bug hunting:
+- [ ] on mouse leave, unfinished path artifact stays on screen until paths re-rendered - erase right away instead
+- [ ] don't allow eraser mode to interrupt other mode (eg while drawing or panning)
+- [ ] cursor is wrong color after certain transitions; maybe related to above?
 
 
-for better performance...
+#### for better performance...
 - [ ] requestAnimationFrame() for quicker polling than onmousemove? Onmousemove slows considerably with heavy computer usage like screensharing + videoconferencing
 - [ ] cursor display on canvas instead of div element forcing update
 - [ ] investigate clipping mask on canvas redraw?
 - [ ] store less points in paths or interpolate or curve, eg remove super close points in a path
 - [ ] only track last n commands for undo, ie delete oldest unused paths from memory
 
-down the road...
+#### down the road...
 - [ ] networking to communicate between two people??i guess just hosted on a little server using sockets or something
 - [ ] local bluetooth app?????
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 - [ ] or student scans QR code that will go to website, connected to my whiteboard session
 - [ ] favicon
 - [ ] screencapture demo video/gif => embed in this readme
+- [ ] add this readme as /about page to gh-pages.io site
 - [ ] consistent internal naming for discerning types (eg what is a path?)
     - [ ] typescript??
