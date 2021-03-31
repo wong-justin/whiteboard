@@ -28,6 +28,7 @@ gesture ideas:
 - [-] deprecated: wiggle back and forth, like to increase eraser size or to undo again every wiggle. just not feeling it for now.
 
 - [ ] shift drag to select paths
+    - [ ] hold x instead of shift? whichever one is more important to prioritize bt erase and select
     - [ ] delete with some gesture? drag to corner maybe
     - [ ] drag selection
     - [ ] pan and zoom surroundings leave selection unaffected?

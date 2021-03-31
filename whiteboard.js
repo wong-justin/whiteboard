@@ -32,14 +32,17 @@
         // lastDist: 0,
         // lastDirection: null,
     }
-    const html = {
-        parent: document.body,  // maybe have caller initialize this?
-        canvas: document.createElement('canvas'),
-        zoomControlArea: document.createElement('div'),
-        // undoControlArea: document.createElement('div'),
-        cursor: document.createElement('div'),
-    }
-    html.ctx = html.canvas.getContext('2d');
+    const html = (() => {
+				let canvas = document.createElement('canvas');
+				return {
+						parent: document.body,  // maybe have caller initialize this?
+						canvas: canvas,
+						ctx: canvas.getContext('2d'),
+						zoomControlArea: document.createElement('div'),
+						// undoControlArea: document.createElement('div'),
+						cursor: document.createElement('div'),
+				}
+		})();
 
     // some enums, managers, constants
     const Mode = {PEN:1, PAN:2, ZOOM:3, UNDO:4, ERASE:5, current: null};
@@ -49,8 +52,22 @@
         RED: 'red',
         BLUE: 'blue',
         GREEN: 'green',
-        foreground: 'white',  // default start in dark mode
-        background: 'black',
+				_foreground: 'white',	// default start in dark mode
+				_background: 'black',
+				get foreground() {return this._foreground},
+				get background() {return this._background},
+				set foreground(color) {
+						this._foreground = color;
+						html.ctx.strokeStyle = color;
+						// if cursor.style.background is default(black or white), invert it now; else leave it alone
+						html.cursor.style.background = color;
+				},
+				set background(color) {
+						this._background = color;
+						// this._default = invert(color);
+		        html.canvas.style.backgroundColor = color;
+				},
+				// // invert: utils.oppositeGenerator('black', 'white'),
         // opposite of background, aka default foreground
         get default() {return (Color.background == Color.WHITE ? Color.BLACK : Color.WHITE)},
     };
@@ -75,8 +92,12 @@
                 repaint();
             },
         },
-				// REPLACE_ALL_PATHS: {
-				// 		redo: ()
+				// REPLACE_ALL_PATHS: {	// for import, making it undoable
+				// 		redo: (newIDs, oldIDs) => {
+				// 				// something like
+				// 				data.deletedPaths = data.deletedPaths.merge(data.paths);
+				// 				data.paths.clear();
+				// 		}
 				// }
     });
 		const Export = new utils.ExportManager({
@@ -129,7 +150,7 @@
         addEventListeners();
         onResize();         // canvas size init
         setDefaultPen();    // stroke color
-        setDefaultCursor(); // cursor style
+        setDotCursor(); // cursor style
 
         console.log(HELP_MESSAGE);  // instructions
     }
@@ -180,7 +201,7 @@
         });
     }
 
-    function setDefaultCursor() {
+    function setDotCursor() {
         utils.setStyle(html.cursor, {
             display: 'block',
             width: CURSOR_WIDTH + 'px',
@@ -205,18 +226,6 @@
             // border: '1px solid ' + foregroundColor,
             border: '1px solid ' + Color.default,
         });
-    }
-
-    function setForegroundColor(newColor) {
-        Color.foreground = newColor;
-        html.ctx.strokeStyle = Color.foreground;
-        // if cursor.style.background is default(black or white), invert it now; else leave it alone
-        html.cursor.style.background = Color.foreground;
-    }
-
-    function setBackgroundColor(newColor) {
-        Color.background = newColor;
-        html.canvas.style.backgroundColor = Color.background;
     }
 
     function toggleDarkMode() {
@@ -246,8 +255,13 @@
         // called once on page load
 
         // window events
-        utils.addListeners(window, {'resize' : onResize});
-        utils.addListeners(html.parent, {'mouseout': onMouseOut});
+				utils.addListeners(html.parent, {'mouseout': onMouseOut});
+        utils.addListeners(window, {
+						'resize' : onResize,
+						'dragover': e => e.preventDefault(),	// else would be open file in browser tab
+						'drop': onFileDrop,
+				});
+
         // mouse events
         utils.addListeners(html.canvas, {
             'mousedown': onMouseDown,
@@ -270,10 +284,11 @@
             },
             onPress: {
                 ' ': eraseAllPaths,
-                'f': () => setForegroundColor(Color.default),
-                'r': () => setForegroundColor(Color.RED),
-                'g': () => setForegroundColor(Color.GREEN),
-                'b': () => setForegroundColor(Color.BLUE),
+								// 'f': () => setForegroundColor(Color.default),
+								'f': () => Color.foreground = Color.default,
+                'r': () => Color.foreground = Color.RED,
+                'g': () => Color.foreground = Color.GREEN,
+                'b': () => Color.foreground = Color.BLUE,
                 'd': toggleDarkMode,
             },
             onCtrlPress: {
@@ -282,14 +297,14 @@
                 's': (e) => {
                     e.preventDefault();
 
-                    // Export.JSON();
-										Export.PNG();
+                    Export.JSON();
+										// Export.PNG();
                 },
 								'o': (e) => {
 										e.preventDefault();
 
-										openFileChooser()
-										.then(file => readJSONFile(file))
+										utils.openFileChooser()
+										.then(file => utils.readJSONFile(file))
 										.then(state => importState(state));
 								},
             },
@@ -317,6 +332,47 @@
             unsetMode();
         }
     }
+
+		function onDragEnter(e) {
+		// document.addEventListener('dragstart', e => {
+				// e.preventDefault()
+				// e.dataTransfer.effectAllowed = 'copy';
+				console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
+				// e.dataTransfer.dropEffect = 'none';
+		}
+
+		function onFileDrop(e) {
+
+				e.preventDefault();
+				console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
+				// chromium: copyMove, none
+				// firefox:  uninitialized, move
+
+				// investigating fman solution to getting file
+				/*
+				console.log(e.dataTransfer.getData('text'));
+				// return;
+
+				let a = e.dataTransfer.items[0];
+				console.log(a);
+				// a.getAsFileSystemHandle().then(result => console.log(result))
+				// a.getAsString(s => console.log(s));
+				// return;
+
+				let f = new FileReader();
+				f.onload = (e) => {
+						console.log(e.target.result)
+				}
+				f.readAsDataURL(a.getAsFile());
+				*/
+
+				// standard; works with fman on firefox but not chrome
+				let file = e.dataTransfer.items[0].getAsFile();
+
+
+				utils.readJSONFile(file)
+				.then(state => importState(state));
+		}
 
     // mouse
 
@@ -480,7 +536,7 @@
         repaint();
     }
 
-    // other views
+  	// meta painting
 
     function clearScreen() {
         // just whites canvas but not data
@@ -623,76 +679,6 @@
         */
     }
 
-    // preventing default drag behavior
-    document.addEventListener('dragover', e => e.preventDefault());
-    document.addEventListener('dragenter', e => {
-    // document.addEventListener('dragstart', e => {
-        // e.preventDefault()
-        // e.dataTransfer.effectAllowed = 'copy';
-        console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
-        // e.dataTransfer.dropEffect = 'none';
-    });
-
-    document.addEventListener('drop', (e) => {
-
-
-
-        e.preventDefault();
-        console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
-        // chromium: copyMove, none
-        // firefox:  uninitialized, move
-
-        // investigating fman solution to getting file
-        /*
-        console.log(e.dataTransfer.getData('text'));
-        // return;
-
-        let a = e.dataTransfer.items[0];
-        console.log(a);
-        // a.getAsFileSystemHandle().then(result => console.log(result))
-        // a.getAsString(s => console.log(s));
-        // return;
-
-        let f = new FileReader();
-        f.onload = (e) => {
-            console.log(e.target.result)
-        }
-        f.readAsDataURL(a.getAsFile());
-        */
-
-        // standard; works with fman on firefox but not chrome
-        let file = e.dataTransfer.items[0].getAsFile();
-
-
-				readJSONFile(file)
-				.then(state => importState(state));
-    });
-
-    function readJSONFile(file) {
-        return new Promise(resolve => {
-            let reader = new FileReader();
-            reader.onload = (e) => {
-                let text = e.target.result;
-                resolve(JSON.parse(text));
-            };
-            reader.readAsText(file);
-        });
-    }
-
-		let openFileChooser = (() => {
-				// async function, resulting in File from user's system
-				let input = document.createElement('input');
-				input.type = 'file';
-
-				return () => new Promise(resolve => {
-						input.oninput = (e) => {
-								resolve(input.files[0]);
-								input.value = '';		// in case user wants to choose same file again
-						}
-						input.click();
-				});
-		})();
-
     /**** HELPERS ****/
 
     // drawing
@@ -817,11 +803,9 @@
     }
 
     function unsetMode() {
-        setDefaultCursor();
+        setDotCursor();
         Mode.current = null;
     }
-
-
 
 
 

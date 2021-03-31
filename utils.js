@@ -181,6 +181,35 @@
         obj.addEventListener(type, callback);
     });
 
+    let readJSONFile = (file) => new Promise(resolve => {
+        console.log(file);
+
+        let reader = new FileReader();
+        reader.onload = (e) => {
+            let text = e.target.result;
+            resolve(JSON.parse(text));
+        };
+        reader.readAsText(file);
+    });
+
+    let openFileChooser = (() => {
+        // async function, resulting in File from user's system
+        let input = document.createElement('input');
+        input.type = 'file';
+
+        return () => new Promise(resolve => {
+            input.oninput = (e) => {
+                resolve(input.files[0]);
+                input.value = '';		// in same file is chosen nextagain
+            }
+            input.click();
+        });
+    })();
+
+    // let oppositeGenerator = (a,b) => {
+    //     return (x) => (x == a ? b : a);
+    // }
+
     /**** generalized managers ****/
 
     function setKeypressListeners({onPress = {}, onCtrlPress = {}, onHold = {},}) {
@@ -302,6 +331,8 @@
         setStyle,
         setProperties,
         addListeners,
+        readJSONFile,
+        openFileChooser,
         setKeypressListeners,
         CommandManager,
         ExportManager,
