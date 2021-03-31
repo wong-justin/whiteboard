@@ -140,6 +140,8 @@
                 pt[0] < rect.right &&
                 pt[1] < rect.top &&
                 pt[1] > rect.bottom);
+                // pt[1] > rect.top &&
+                // pt[1] < rect.bottom);
     }
 
     function expandRect(rect, margin) {

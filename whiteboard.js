@@ -451,7 +451,7 @@
         let mouseMoveRect = utils.boundingRect(mousePos, data.lastMousePos);
         utils.expandRect(mouseMoveRect, ERASER_WIDTH / 2);
 
-        data.paths.forEach((path, id) => {					
+        data.paths.forEach((path, id) => {
             if ( utils.rectIntersectsPath(mouseMoveRect, path.points) ) {
                 // data.deletedPaths.set(id, path);
                 // data.paths.delete(id);
@@ -773,9 +773,18 @@
     function insideDiv(e, div) {
         return utils.pointInRect(
             [e.clientX, e.clientY],
-            div.getBoundingClientRect()
+            fixDOMRect(div.getBoundingClientRect())
         );
     }
+
+		function fixDOMRect(upsideDownRect) {
+				return {
+						left: upsideDownRect.left,
+						right: upsideDownRect.right,
+						bottom: upsideDownRect.top,
+						top: upsideDownRect.bottom,
+				}
+		}
 
     function setMode(newMode) {
         switch (newMode) {

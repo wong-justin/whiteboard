@@ -58,6 +58,7 @@ https://wong-justin.github.io/whiteboard/
 - [ ] on mouse leave, unfinished path artifact stays on screen until paths re-rendered - erase right away instead
 - [ ] don't allow eraser mode to interrupt other mode (eg while drawing or panning)
 - [ ] cursor is wrong color after certain transitions; maybe related to above?
+- [ ] can't start draw in place immediately after color switch
 
 
 #### for better performance...
