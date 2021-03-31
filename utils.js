@@ -182,7 +182,6 @@
     });
 
     let readJSONFile = (file) => new Promise(resolve => {
-        console.log(file);
 
         let reader = new FileReader();
         reader.onload = (e) => {

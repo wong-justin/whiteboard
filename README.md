@@ -48,9 +48,11 @@ other features:
 - [ ] custom keybindings? like for stylus not having shift or right click
 
 - [x] export as image (ctrl-s)
-- [ ] import/export state
-    - [ ] import json state by dragging file into page, like uploading an image to a website
-    - [ ] or maybe override ctrl-o
+- [x] import/export state
+    - [x] import json state by dragging file into page, like uploading an image to a website
+    - [x] or maybe override ctrl-o
+
+other whiteboard renderables besides drawn paths:
 - [ ] import any image (ctrl i?)
 - [ ] simple text box (hit Enter to start typing at cursor?)
 

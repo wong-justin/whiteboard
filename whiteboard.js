@@ -258,12 +258,8 @@
 				utils.addListeners(html.parent, {'mouseout': onMouseOut});
         utils.addListeners(window, {
 						'resize' : onResize,
-						'dragover': (e) => e.preventDefault(),	// else would be open file in browser tab
-						// 'dragenter': (e) => {
-						// 		console.log('entered')
-						// 		e.stopPropagation()
-						// },
-						'drop': onFileDrop,
+						'dragover': (e) => e.preventDefault(),	// else would open file in browser tab
+						'drop': onDrop,
 				});
 
         // mouse events
@@ -271,7 +267,7 @@
             'mousedown': onMouseDown,
             'mouseup': onMouseUp,
             'mousemove': onMouseMove,
-            'contextmenu': (e) => e.preventDefault(),
+            'contextmenu': (e) => e.preventDefault(),	// else normal right click
         });
         // key events
 				utils.setKeypressListeners({
@@ -298,19 +294,8 @@
             onCtrlPress: {
                 'z': () => Commands.undo(),
                 'y': () => Commands.redo(),
-                's': (e) => {
-                    e.preventDefault();
-
-                    Export.JSON();
-										// Export.PNG();
-                },
-								'o': (e) => {
-										e.preventDefault();
-
-										utils.openFileChooser()
-										.then(file => utils.readJSONFile(file))
-										.then(state => importState(state));
-								},
+                's': onSave,
+								'o': onOpen,
             },
         });
     }
@@ -336,104 +321,6 @@
             unsetMode();
         }
     }
-
-		function onDragEnter(e) {
-		// document.addEventListener('dragstart', e => {
-				// e.preventDefault()
-				// e.dataTransfer.effectAllowed = 'copy';
-				console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
-				// e.dataTransfer.dropEffect = 'none';
-		}
-
-		function onFileDrop(e) {
-
-				e.preventDefault();
-				console.log(e.dataTransfer.effectAllowed, e.dataTransfer.dropEffect);
-				// chromium: copyMove, none
-				// firefox:  uninitialized, move
-
-				// investigating fman solution to getting file
-				/*
-				console.log(e.dataTransfer.getData('text'));
-				// return;
-
-				let a = e.dataTransfer.items[0];
-				console.log(a);
-				// a.getAsFileSystemHandle().then(result => console.log(result))
-				// a.getAsString(s => console.log(s));
-				// return;
-
-				let f = new FileReader();
-				f.onload = (e) => {
-						console.log(e.target.result)
-				}
-				f.readAsDataURL(a.getAsFile());
-				*/
-
-				// possible bugfix?
-				// for (let item of e.dataTransfer.items) {
-				// 		let entry = item.webkitGetAsEntry();
-				//
-				// 		if (entry.isFile) {
-				// 				// due to a bug in Chrome's File System API impl - #149735
-				// 				console.log('entry is file')
-				// 				fileReadSuccess(item.getAsFile(), entry.fullPath);
-				// 		} else {
-				// 				console.log('entry is NOT file')
-				// 				entry.createReader().readEntries(readSuccess, readError);
-				// 		}
-				//
-				// }
-
-				// let bufferifyTemplate = {
-				// 		timestamp: 'number',
-				// 		darkMode: 'boolean',
-				// 		paths: [{
-				// 				points: [['number']],
-				// 				color: 'string',
-				// 		}],
-				// };
-
-				//
-				console.log(e.dataTransfer)
-
-
-				var t = new FileReader()
-				t.onload = function(e) {
-						// array buffer
-
-						// let buffer = e.target.result;
-						// console.log(buffer);
-						//
-						// // console.log(buffer.toString());
-						// // console.log(JSON.parse(buffer))
-						// let jsonStr = new TextDecoder().decode(buffer);
-						// // console.log(jsonStr)
-						// let state = JSON.parse(jsonStr);
-						// console.log(state)
-						// return;
-
-						// text
-						let state = JSON.parse(e.target.result);
-						console.log(state)
-						return state;
-
-
-				}
-				,
-				// t.readAsArrayBuffer(e.dataTransfer.files[0])
-				t.readAsText(e.dataTransfer.files[0])
-
-
-
-				// standard; works with fman on firefox but not chrome
-				// let file = e.dataTransfer.items[0].getAsFile();
-				//
-				//
-				// utils.readJSONFile(file)
-				// .then(state => importState(state));
-
-		}
 
     // mouse
 
@@ -502,6 +389,32 @@
         // ?
 //        requestAnimationFrame(() => onMouseMove(e));
     }
+
+		// I/O
+
+		function onSave(e) {
+				e.preventDefault();	// else browser would save html
+
+				Export.JSON();
+				// Export.PNG();
+		}
+
+		function onOpen(e) {
+				e.preventDefault();	// else browser would open any user file as tab
+
+				utils.openFileChooser()
+				.then(file => utils.readJSONFile(file))
+				.then(state => importState(state));
+		}
+
+		function onDrop(e) {
+				e.preventDefault();	// else would open file in browser tab
+
+				let file = e.dataTransfer.files[0];
+
+				utils.readJSONFile(file)
+				.then(state => importState(state));
+		}
 
     /**** MAIN WHITEBOARD COMMANDS, BUSINESS LOGIC ****/
 
@@ -674,13 +587,17 @@
 
         let state = currentState();
 
-        let jsonStr = JSON.stringify({
+				// add timestamp, remove history and IDs
+        let modifiedState = {
             timestamp: Date.now(),
             darkMode: state.darkMode,
             paths: stripIDs(state.paths),
-        });
+						// strippedPaths: stripIDs(state.paths),
+        };
 
-        return 'data:application/json,' + jsonStr;
+        return 'data:application/json,' + JSON.stringify(modifiedState);
+				// btoa() encodes str to b64; consider it for smaller file sizes?
+				// or maybe just encode to binary data at that point
     }
 
     let currentState = () => ({
@@ -698,6 +615,7 @@
     }
 
     function addIDs(paths) {
+				// create new IDs for stripped paths (from imported state)
         return new utils.MyMap(
             paths.map(p => [newID(), p])
         );
@@ -745,7 +663,7 @@
     // drawing
 
     let newID = (() => {
-      // generates unique id every call
+      // function that returns unique id every call
       count = 0;
       return () => count++;
     })();
