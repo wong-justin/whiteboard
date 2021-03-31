@@ -451,7 +451,7 @@
         let mouseMoveRect = utils.boundingRect(mousePos, data.lastMousePos);
         utils.expandRect(mouseMoveRect, ERASER_WIDTH / 2);
 
-        data.paths.forEach((path, id) => {
+        data.paths.forEach((path, id) => {					
             if ( utils.rectIntersectsPath(mouseMoveRect, path.points) ) {
                 // data.deletedPaths.set(id, path);
                 // data.paths.delete(id);
