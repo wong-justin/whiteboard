@@ -17,7 +17,8 @@ https://wong-justin.github.io/whiteboard/
 | `F`                                                  | default pen color (white or black) |
 | `Ctrl` + `Z`                                         | undo                               |
 | `Ctrl` + `Y`                                         | redo                               |
-| `Ctrl` + `S`                                         | export whiteboard (not image?)     |
+| `Ctrl` + `P`                                         | save as image                      |
+| `Ctrl` + `S`                                         | export whiteboard                  |
 | `Ctrl` + `O` or drag and drop                        | import whiteboard                  |
 | `D`                                                  | toggle dark mode                   |
 

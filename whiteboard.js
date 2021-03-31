@@ -139,9 +139,13 @@
        - undo (for drawing and erasing)
       Ctrl + Y
        - redo
-      Ctrl + S
-       - save as image
-      D
+			Ctrl + P
+			 - save as image
+			Ctrl + S
+			 - export whiteboard
+			Ctrl + O or drag and drop
+			 - import whiteboard
+			D
        - toggle dark mode
     `.replace(/  +/g, '');  // remove indents
 
@@ -294,8 +298,9 @@
             onCtrlPress: {
                 'z': () => Commands.undo(),
                 'y': () => Commands.redo(),
-                's': onSave,
+                's': onExport,
 								'o': onOpen,
+								'p': onSave,
             },
         });
     }
@@ -394,6 +399,13 @@
 
 		function onSave(e) {
 				e.preventDefault();	// else browser would save html
+
+				// Export.JSON();
+				Export.PNG();
+		}
+
+		function onExport(e) {
+				e.preventDefault();	// else print
 
 				Export.JSON();
 				// Export.PNG();
