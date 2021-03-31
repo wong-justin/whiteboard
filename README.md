@@ -17,7 +17,8 @@ https://wong-justin.github.io/whiteboard/
 | `F`                                                  | default pen color (white or black) |
 | `Ctrl` + `Z`                                         | undo                               |
 | `Ctrl` + `Y`                                         | redo                               |
-| `Ctrl` + `S`                                         | save as image                      |
+| `Ctrl` + `S`                                         | export whiteboard (not image?)     |
+| `Ctrl` + `O` or drag and drop                        | import whiteboard                  |
 | `D`                                                  | toggle dark mode                   |
 
 
@@ -52,11 +53,16 @@ other features:
     - [x] import json state by dragging file into page, like uploading an image to a website
     - [x] or maybe override ctrl-o
 
+- [ ] restore default settings, if customizable settings allowed
+- [ ] remember recent state in case of emergency
+    - [ ] cookie for last session?
+    - [ ] update backup on interval? (eg every 3 min)
+    - [ ] local browser storage (as string?)
+
 other whiteboard renderables besides drawn paths:
 - [ ] import any image (ctrl i?)
 - [ ] simple text box (hit Enter to start typing at cursor?)
 
-- [ ] restore default settings, if customizable settings allowed
 
 for better performance...
 - [ ] requestAnimationFrame() for quicker polling than onmousemove? Onmousemove slows considerably with heavy computer usage like screensharing + videoconferencing
@@ -71,5 +77,6 @@ down the road...
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 - [ ] or student scans QR code that will go to website, connected to my whiteboard session
 - [ ] favicon
-- [ ] consistent internal naming for clear types (eg what is a path?)
+- [ ] screencapture demo video/gif => embed in this readme
+- [ ] consistent internal naming for discerning types (eg what is a path?)
     - [ ] typescript??

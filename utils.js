@@ -105,13 +105,21 @@
             left  = ptB[0];
             right = ptA[0];
         }
+        // if (ptA[1] < ptB[1]) {
+        //     bottom = ptA[1];
+        //     top    = ptB[1];
+        // }
+        // else {
+        //     bottom = ptB[1];
+        //     top    = ptA[1];
+        // }
         if (ptA[1] < ptB[1]) {
-            bottom = ptA[1];
-            top    = ptB[1];
+            top    = ptA[1];
+            bottom = ptB[1];
         }
         else {
-            bottom = ptB[1];
-            top    = ptA[1];
+            top    = ptB[1];
+            bottom = ptA[1];
         }
         return {left, right, bottom, top};
     }
@@ -130,8 +138,8 @@
     function pointInRect(pt, rect) {
         return (pt[0] > rect.left &&
                 pt[0] < rect.right &&
-                pt[1] > rect.top &&
-                pt[1] < rect.bottom);
+                pt[1] < rect.top &&
+                pt[1] > rect.bottom);
     }
 
     function expandRect(rect, margin) {

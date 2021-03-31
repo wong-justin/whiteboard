@@ -540,8 +540,6 @@
             bottom = utils.min(ys),
             top    = utils.max(ys);
 
-        console.log(left, right, top, bottom);
-
         let margin = 100;
         let totalWidth  = (right - left) + 2*margin,
             totalHeight = (top - bottom) + 2*margin;
