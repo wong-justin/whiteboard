@@ -146,11 +146,11 @@
     `.replace(/  +/g, '');  // remove indents
 
     function init(settings) {
-        initHTML();         // load page elements
+        initHTML();       // load page elements
         addEventListeners();
-        onResize();         // canvas size init
-        setDefaultPen();    // stroke color
-        setDotCursor(); // cursor style
+        onResize();				// canvas size init
+        setDefaultPen();	// stroke color
+        setDotCursor();		// cursor style
 
         console.log(HELP_MESSAGE);  // instructions
     }
@@ -258,7 +258,11 @@
 				utils.addListeners(html.parent, {'mouseout': onMouseOut});
         utils.addListeners(window, {
 						'resize' : onResize,
-						'dragover': e => e.preventDefault(),	// else would be open file in browser tab
+						'dragover': (e) => e.preventDefault(),	// else would be open file in browser tab
+						// 'dragenter': (e) => {
+						// 		console.log('entered')
+						// 		e.stopPropagation()
+						// },
 						'drop': onFileDrop,
 				});
 
@@ -366,12 +370,69 @@
 				f.readAsDataURL(a.getAsFile());
 				*/
 
+				// possible bugfix?
+				// for (let item of e.dataTransfer.items) {
+				// 		let entry = item.webkitGetAsEntry();
+				//
+				// 		if (entry.isFile) {
+				// 				// due to a bug in Chrome's File System API impl - #149735
+				// 				console.log('entry is file')
+				// 				fileReadSuccess(item.getAsFile(), entry.fullPath);
+				// 		} else {
+				// 				console.log('entry is NOT file')
+				// 				entry.createReader().readEntries(readSuccess, readError);
+				// 		}
+				//
+				// }
+
+				// let bufferifyTemplate = {
+				// 		timestamp: 'number',
+				// 		darkMode: 'boolean',
+				// 		paths: [{
+				// 				points: [['number']],
+				// 				color: 'string',
+				// 		}],
+				// };
+
+				//
+				console.log(e.dataTransfer)
+
+
+				var t = new FileReader()
+				t.onload = function(e) {
+						// array buffer
+
+						// let buffer = e.target.result;
+						// console.log(buffer);
+						//
+						// // console.log(buffer.toString());
+						// // console.log(JSON.parse(buffer))
+						// let jsonStr = new TextDecoder().decode(buffer);
+						// // console.log(jsonStr)
+						// let state = JSON.parse(jsonStr);
+						// console.log(state)
+						// return;
+
+						// text
+						let state = JSON.parse(e.target.result);
+						console.log(state)
+						return state;
+
+
+				}
+				,
+				// t.readAsArrayBuffer(e.dataTransfer.files[0])
+				t.readAsText(e.dataTransfer.files[0])
+
+
+
 				// standard; works with fman on firefox but not chrome
-				let file = e.dataTransfer.items[0].getAsFile();
+				// let file = e.dataTransfer.items[0].getAsFile();
+				//
+				//
+				// utils.readJSONFile(file)
+				// .then(state => importState(state));
 
-
-				utils.readJSONFile(file)
-				.then(state => importState(state));
 		}
 
     // mouse
@@ -806,7 +867,6 @@
         setDotCursor();
         Mode.current = null;
     }
-
 
 
 
