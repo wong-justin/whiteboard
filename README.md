@@ -5,6 +5,8 @@ Designed for no UI and for use with 2-button stylus (mapped to right click and s
 
 https://wong-justin.github.io/whiteboard/
 
+![screencapture demo](demo.gif)
+
 ## Features
 
 | Controls                                             | Command                            |
@@ -74,7 +76,7 @@ https://wong-justin.github.io/whiteboard/
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
 - [ ] or student scans QR code that will go to website, connected to my whiteboard session
 - [ ] favicon
-- [ ] screencapture demo video/gif => embed in this readme
+- [x] screencapture demo video/gif => embed in this readme
 - [ ] add this readme as /about page to gh-pages.io site
 - [ ] consistent internal naming for discerning types (eg what is a path?)
     - [ ] typescript??
