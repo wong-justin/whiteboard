@@ -234,8 +234,11 @@
 
     function toggleDarkMode() {
 
-        // setForegroundColor(Color.background);
-        setBackgroundColor(Color.default);
+        // // setForegroundColor(Color.background);
+        // setBackgroundColor(Color.default);
+
+				Color.foreground = Color.background
+				Color.background = Color.default;
 
         // invert the paths of default color
         data.paths = data.paths.map(invertDefaultColor);
