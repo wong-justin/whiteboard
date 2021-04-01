@@ -147,6 +147,8 @@
 			 - import whiteboard
 			D
        - toggle dark mode
+
+      https://github.com/wong-justin/whiteboard
 		`.replace(/(?<=\n)[\t ]+/g, '');  // remove indents
 
     function init(settings) {
