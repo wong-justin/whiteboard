@@ -62,15 +62,20 @@ https://wong-justin.github.io/whiteboard/
 - [ ] cursor is wrong color after certain transitions; maybe related to above?
 - [ ] can't start draw in place immediately after color switch
 
+<details>
+<summary>for better performance...</summary>
 
-#### for better performance...
 - [ ] requestAnimationFrame() for quicker polling than onmousemove? Onmousemove slows considerably with heavy computer usage like screensharing + videoconferencing
 - [ ] cursor display on canvas instead of div element forcing update
 - [ ] investigate clipping mask on canvas redraw?
 - [ ] store less points in paths or interpolate or curve, eg remove super close points in a path
 - [ ] only track last n commands for undo, ie delete oldest unused paths from memory
 
-#### down the road...
+</details>
+
+<details>
+<summary>down the road...</summary>
+
 - [ ] networking to communicate between two people??i guess just hosted on a little server using sockets or something
 - [ ] local bluetooth app?????
     https://developer.android.com/guide/topics/connectivity/bluetooth#ConnectDevices
@@ -80,3 +85,8 @@ https://wong-justin.github.io/whiteboard/
 - [ ] add this readme as /about page to gh-pages.io site
 - [ ] consistent internal naming for discerning types (eg what is a path?)
     - [ ] typescript??
+
+</details>
+
+#### Credits
+Partially inspired by [CS50 blackboard](https://draw.cs50.io/) (see [repo](https://github.com/cs50/draw.cs50.io) and [video description](https://youtu.be/KbXDCcw0LPs?t=541))

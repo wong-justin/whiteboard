@@ -274,8 +274,11 @@
         // mouse events
         utils.addListeners(html.canvas, {
             'mousedown': onMouseDown,
+            'pointerdown': onMouseDown,
             'mouseup': onMouseUp,
+            'pointerup': onMouseUp,
             'mousemove': onMouseMove,
+            'pointermove': onMouseMove,
             'contextmenu': (e) => e.preventDefault(),	// else normal right click
         });
         // key events
